@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Literal
 import asyncio
-from concurrent.futures import ProcessPoolExecutor
+from datetime import date, timedelta
 
 from services.data_service import get_price_series
 from models.arima_model import run_arima
@@ -28,8 +28,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-executor = ProcessPoolExecutor(max_workers=2)
-
 MODEL_RUNNERS = {
     "arima": run_arima,
     "garch": run_garch,
@@ -37,13 +35,34 @@ MODEL_RUNNERS = {
     "hybrid": run_hybrid,
 }
 
-# Baseline metrics for comparison (pre-computed reference values)
 BASELINE_METRICS = {
     "arima":  {"mae": 52.3,  "rmse": 71.8,  "mape": 1.82},
     "garch":  {"mae": 61.7,  "rmse": 84.2,  "mape": 2.14},
     "lstm":   {"mae": 38.6,  "rmse": 56.4,  "mape": 1.34},
     "hybrid": {"mae": 27.4,  "rmse": 41.2,  "mape": 0.96},
 }
+
+
+def _count_future_days(end_str: str) -> int:
+    """Return number of calendar days from today to end_str (0 if end is past)."""
+    try:
+        end_date = date.fromisoformat(end_str)
+    except ValueError:
+        return 0
+    delta = (end_date - date.today()).days
+    return max(0, delta)
+
+
+def _future_dates(from_date_str: str, n_days: int) -> list:
+    """Generate n_days business-day-like dates after from_date_str."""
+    start = date.fromisoformat(from_date_str)
+    dates = []
+    d = start + timedelta(days=1)
+    while len(dates) < n_days:
+        if d.weekday() < 5:  # Mon–Fri
+            dates.append(d.strftime("%Y-%m-%d"))
+        d += timedelta(days=1)
+    return dates
 
 
 class ForecastRequest(BaseModel):
@@ -73,10 +92,14 @@ async def forecast(req: ForecastRequest):
     if runner is None:
         raise HTTPException(status_code=400, detail=f"Unknown model: {req.model}")
     try:
+        n_future = _count_future_days(req.end)
+        # Cap future forecast to 90 trading days to avoid unreasonable wait
+        n_future = min(n_future, 90)
+
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(
             None,
-            lambda: runner(req.ticker, req.start, req.end, req.window),
+            lambda: runner(req.ticker, req.start, req.end, req.window, n_future),
         )
         return result
     except Exception as e:
@@ -90,10 +113,6 @@ async def compare(
     start: str = Query("2015-01-01"),
     end: str = Query("2024-01-01"),
 ):
-    """
-    Returns pre-computed (cached) metrics for all models.
-    For a full live comparison, POST /api/forecast for each model.
-    """
     models_info = [
         {"name": "ARIMA(2,1,2)", "key": "arima",  **BASELINE_METRICS["arima"]},
         {"name": "GARCH(1,1)",   "key": "garch",  **BASELINE_METRICS["garch"]},
