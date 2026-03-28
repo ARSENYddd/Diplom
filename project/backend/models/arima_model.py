@@ -26,13 +26,11 @@ def run_arima(ticker: str, start: str, end: str, window: int = 60) -> dict:
 
     order = model.order
     predictions = []
-    history = list(train_prices)
 
     for i in range(len(test_prices)):
-        model_fit = model.fit(np.array(history))
-        fc = model_fit.predict(n_periods=1)[0]
+        fc = model.predict(n_periods=1)[0]
         predictions.append(float(fc))
-        history.append(float(test_prices[i]))
+        model.update([float(test_prices[i])])
 
     predictions = np.array(predictions)
     metrics = compute_all(test_prices, predictions)

@@ -39,6 +39,10 @@ def load_data(ticker: str, start: str, end: str) -> pd.DataFrame:
     if df.empty:
         raise ValueError(f"No data returned for ticker={ticker} from {start} to {end}")
 
+    # newer yfinance returns MultiIndex columns (Price, Ticker) — flatten
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.droplevel(1)
+
     df = df[["Close"]].copy()
     df.index = pd.to_datetime(df.index)
     df = df.dropna()
