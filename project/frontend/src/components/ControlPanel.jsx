@@ -100,14 +100,9 @@ export default function ControlPanel({ onForecast, onCompare, loading }) {
   const tickerLabel  = meta?.label ?? activeTicker
   const isMoex       = meta?.moex ?? activeTicker.endsWith('.ME')
 
-  // When user picks a MOEX ticker, set sensible date defaults
+  // Switch ticker without touching dates — user controls dates manually
   const handleTickerChange = (val) => {
     setTicker(val)
-    const m = TICKER_META[val]
-    if (m?.moex) {
-      setStart('2015-01-01')
-      setEnd('2024-01-01')
-    }
   }
 
   const today = new Date().toISOString().slice(0, 10)
