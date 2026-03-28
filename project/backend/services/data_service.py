@@ -37,7 +37,14 @@ def load_data(ticker: str, start: str, end: str) -> pd.DataFrame:
 
     df = yf.download(ticker, start=start, end=end, progress=False, auto_adjust=True)
     if df.empty:
-        raise ValueError(f"No data returned for ticker={ticker} from {start} to {end}")
+        moex_hint = (
+            " Yahoo Finance не предоставляет данные MOEX после мая 2022 г. (санкции)."
+            " Установите дату окончания не позже 2022-05-01."
+            if ticker.endswith(".ME") else ""
+        )
+        raise ValueError(
+            f"Нет данных для тикера {ticker} за период {start}–{end}.{moex_hint}"
+        )
 
     # newer yfinance returns MultiIndex columns (Price, Ticker) — flatten
     if isinstance(df.columns, pd.MultiIndex):

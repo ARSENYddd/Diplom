@@ -1,5 +1,10 @@
 import { useState } from 'react'
 
+// MOEX tickers: Yahoo Finance stopped providing data after 2022-05-24 due to sanctions.
+// We mark them and auto-set dates accordingly.
+const MOEX_LAST_DATE = '2022-05-01'
+const MOEX_START_DATE = '2015-01-01'
+
 const TICKER_GROUPS = [
   {
     group: '🇺🇸 США — Индексы',
@@ -11,6 +16,7 @@ const TICKER_GROUPS = [
   },
   {
     group: '🇷🇺 Нефтяной сектор РФ (MOEX)',
+    moex: true,
     tickers: [
       { value: 'GAZP.ME', label: 'Газпром' },
       { value: 'LKOH.ME', label: 'Лукойл' },
@@ -24,6 +30,7 @@ const TICKER_GROUPS = [
   },
   {
     group: '🇷🇺 Другие секторы РФ (MOEX)',
+    moex: true,
     tickers: [
       { value: 'SBER.ME', label: 'Сбербанк' },
       { value: 'VTBR.ME', label: 'ВТБ' },
@@ -72,9 +79,9 @@ const TICKER_GROUPS = [
   },
 ]
 
-// Flat map for label lookup
-const TICKER_MAP = Object.fromEntries(
-  TICKER_GROUPS.flatMap(g => g.tickers.map(t => [t.value, t.label]))
+// Build flat map: ticker value → { label, moex }
+const TICKER_META = Object.fromEntries(
+  TICKER_GROUPS.flatMap(g => g.tickers.map(t => [t.value, { label: t.label, moex: !!g.moex }]))
 )
 
 const MODELS = [
@@ -94,12 +101,24 @@ export default function ControlPanel({ onForecast, onCompare, loading }) {
   const [window,      setWindow]      = useState(60)
 
   const activeTicker = useCustom ? customTicker.trim().toUpperCase() : ticker
-  const tickerLabel  = TICKER_MAP[activeTicker] ?? activeTicker
+  const meta         = TICKER_META[activeTicker]
+  const tickerLabel  = meta?.label ?? activeTicker
+  const isMoex       = meta?.moex ?? activeTicker.endsWith('.ME')
+
+  // When user picks a MOEX ticker from the list, auto-adjust dates
+  const handleTickerChange = (val) => {
+    setTicker(val)
+    const m = TICKER_META[val]
+    if (m?.moex) {
+      setStart(MOEX_START_DATE)
+      setEnd(MOEX_LAST_DATE)
+    }
+  }
+
+  const today = new Date().toISOString().slice(0, 10)
 
   const handleForecast = () => {
     if (!activeTicker) return
-    // Send client-side today so the backend doesn't depend on its own clock
-    const today = new Date().toISOString().slice(0, 10)
     onForecast({ ticker: activeTicker, start, end, model, window, today })
   }
   const handleCompare = () => {
@@ -161,7 +180,7 @@ export default function ControlPanel({ onForecast, onCompare, loading }) {
         ) : (
           <select
             value={ticker}
-            onChange={e => setTicker(e.target.value)}
+            onChange={e => handleTickerChange(e.target.value)}
             className={inputCls}
           >
             {TICKER_GROUPS.map(g => (
@@ -174,6 +193,17 @@ export default function ControlPanel({ onForecast, onCompare, loading }) {
               </optgroup>
             ))}
           </select>
+        )}
+
+        {/* MOEX warning */}
+        {isMoex && (
+          <p className="mt-2 text-xs text-amber-400 flex items-start gap-1.5">
+            <svg className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            </svg>
+            Yahoo Finance не публикует данные MOEX после мая 2022 г. (санкции). Даты скорректированы автоматически.
+          </p>
         )}
       </div>
 
@@ -188,7 +218,7 @@ export default function ControlPanel({ onForecast, onCompare, loading }) {
           <input type="date" value={end} onChange={e => setEnd(e.target.value)} className={inputCls} />
         </div>
       </div>
-      {new Date(end) > new Date() && (
+      {new Date(end) > new Date() && !isMoex && (
         <p className="text-xs text-emerald-400 -mt-3 flex items-center gap-1">
           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
