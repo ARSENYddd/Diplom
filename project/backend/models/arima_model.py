@@ -2,7 +2,7 @@ import numpy as np
 from pmdarima import auto_arima
 from services.data_service import load_data, train_test_split_series
 from services.metrics import compute_all
-from services.forecast_utils import future_trading_dates, bootstrap_future
+from services.forecast_utils import future_trading_dates, bootstrap_future, bootstrap_scenarios
 
 
 def run_arima(ticker: str, start: str, end: str, window: int = 60, n_future: int = 0) -> dict:
@@ -39,19 +39,20 @@ def run_arima(ticker: str, start: str, end: str, window: int = 60, n_future: int
     future_from = len(all_dates)
 
     # --- Future forecast ---
-    future_dates = []
+    scenarios = []
     if n_future > 0:
-        base = model.predict(n_periods=n_future)
-        stochastic = bootstrap_future(base, residuals, seed=hash(ticker) % 2**31)
+        base         = model.predict(n_periods=n_future)
         future_dates = future_trading_dates(test_dates[-1], n_future)
         all_dates   += future_dates
         all_actual  += [None] * n_future
-        all_pred    += stochastic.tolist()
+        all_pred    += bootstrap_future(base, residuals, seed=hash(ticker) % 2**31).tolist()
+        scenarios    = bootstrap_scenarios(base, residuals, base_seed=hash(ticker) % 2**31)
 
     return {
         "dates": all_dates,
         "actual": all_actual,
         "predicted": all_pred,
+        "scenarios": scenarios,          # [] when not in future mode
         "test_from_index": test_from,
         "future_from_index": future_from if n_future > 0 else None,
         "metrics": metrics,

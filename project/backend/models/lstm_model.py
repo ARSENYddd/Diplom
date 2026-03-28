@@ -2,7 +2,7 @@ import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 from services.data_service import load_data, train_test_split_series
 from services.metrics import compute_all
-from services.forecast_utils import future_trading_dates, bootstrap_future
+from services.forecast_utils import future_trading_dates, bootstrap_future, bootstrap_scenarios
 
 import os
 os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
@@ -48,17 +48,30 @@ def run_lstm(ticker: str, start: str, end: str, window: int = 60, n_future: int 
     train_prices = train_df["Close"].values.astype(float).flatten()
     test_prices  = test_df["Close"].values.astype(float).flatten()
 
+    # Auto-reduce window if training data is too short
+    window = min(window, max(5, len(train_prices) // 3))
+    if len(train_prices) <= window:
+        raise ValueError(
+            f"Недостаточно данных: {len(train_prices)} точек, окно={window}. "
+            "Увеличьте период или уменьшите окно."
+        )
+
     # --- Train model ---
     scaler = MinMaxScaler(feature_range=(0, 1))
     train_scaled = scaler.fit_transform(train_prices.reshape(-1, 1))
 
     X_train, y_train = _build_sequences(train_scaled, window)
-    X_train = X_train.reshape(X_train.shape[0], X_train.shape[1], 1)
+    X_train = X_train.reshape(X_train.shape[0], window, 1)
+
+    # Adjust batch_size for small datasets
+    batch_size = min(32, max(1, len(X_train) // 4))
+    val_split  = 0.1 if len(X_train) >= 20 else 0.0
 
     model = _build_model(window)
-    es = EarlyStopping(monitor="val_loss", patience=5, restore_best_weights=True)
-    model.fit(X_train, y_train, epochs=50, batch_size=32,
-              validation_split=0.1, callbacks=[es], verbose=0)
+    es = EarlyStopping(monitor="val_loss" if val_split > 0 else "loss",
+                       patience=5, restore_best_weights=True)
+    model.fit(X_train, y_train, epochs=50, batch_size=batch_size,
+              validation_split=val_split, callbacks=[es], verbose=0)
 
     # --- Backtest: walk-forward on test set ---
     all_prices = np.concatenate([train_prices, test_prices])
@@ -86,7 +99,8 @@ def run_lstm(ticker: str, start: str, end: str, window: int = 60, n_future: int 
     test_from  = len(train_dates)
     future_from = len(all_dates)
 
-    # --- Future forecast: autoregressive + bootstrap noise ---
+    # --- Future forecast: autoregressive + bootstrap scenarios ---
+    scenarios = []
     if n_future > 0:
         rolling = list(all_scaled[-window:, 0])
         base_scaled = []
@@ -96,20 +110,20 @@ def run_lstm(ticker: str, start: str, end: str, window: int = 60, n_future: int 
             base_scaled.append(pred)
             rolling.append(pred)
 
-        base_prices = scaler.inverse_transform(
+        base_prices  = scaler.inverse_transform(
             np.array(base_scaled).reshape(-1, 1)
         ).flatten()
-        stochastic = bootstrap_future(base_prices, residuals, seed=hash(ticker) % 2**31)
-
         future_dates = future_trading_dates(test_dates[-1], n_future)
         all_dates   += future_dates
         all_actual  += [None] * n_future
-        all_pred    += stochastic.tolist()
+        all_pred    += bootstrap_future(base_prices, residuals, seed=hash(ticker) % 2**31).tolist()
+        scenarios    = bootstrap_scenarios(base_prices, residuals, base_seed=hash(ticker) % 2**31)
 
     return {
         "dates": all_dates,
         "actual": all_actual,
         "predicted": all_pred,
+        "scenarios": scenarios,
         "test_from_index": test_from,
         "future_from_index": future_from if n_future > 0 else None,
         "metrics": metrics,
