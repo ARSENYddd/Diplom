@@ -1,0 +1,14 @@
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.env
+dist/
+build/
+.cache/
+project/backend/services/.cache/
+project/frontend/node_modules/
+project/frontend/dist/
+project/frontend/.vite/
