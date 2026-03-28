@@ -43,13 +43,21 @@ BASELINE_METRICS = {
 }
 
 
-def _count_future_days(end_str: str) -> int:
-    """Return number of calendar days from today to end_str (0 if end is past)."""
+def _count_future_days(end_str: str, today_str: str = "") -> int:
+    """Return number of calendar days from today to end_str (0 if end is past).
+
+    Uses client-supplied today_str when available so the result is independent
+    of the server's system clock.
+    """
     try:
         end_date = date.fromisoformat(end_str)
     except ValueError:
         return 0
-    delta = (end_date - date.today()).days
+    try:
+        today = date.fromisoformat(today_str) if today_str else date.today()
+    except ValueError:
+        today = date.today()
+    delta = (end_date - today).days
     return max(0, delta)
 
 
@@ -71,6 +79,7 @@ class ForecastRequest(BaseModel):
     end: str = "2024-01-01"
     model: Literal["arima", "garch", "lstm", "hybrid"] = "hybrid"
     window: int = 60
+    today: str = ""  # client-supplied "today" date (YYYY-MM-DD); avoids server clock issues
 
 
 @app.get("/api/data")
@@ -92,7 +101,7 @@ async def forecast(req: ForecastRequest):
     if runner is None:
         raise HTTPException(status_code=400, detail=f"Unknown model: {req.model}")
     try:
-        n_future = _count_future_days(req.end)
+        n_future = _count_future_days(req.end, req.today)
         # Cap future forecast to 90 trading days to avoid unreasonable wait
         n_future = min(n_future, 90)
 
@@ -120,6 +129,12 @@ async def compare(
         {"name": "ARIMA+LSTM",    "key": "hybrid", **BASELINE_METRICS["hybrid"]},
     ]
     return {"models": models_info}
+
+
+@app.get("/api/debug/date")
+async def debug_date():
+    """Diagnostic: returns the server's current date so client can compare."""
+    return {"server_today": date.today().isoformat()}
 
 
 @app.get("/health")

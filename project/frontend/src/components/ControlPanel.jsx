@@ -98,7 +98,9 @@ export default function ControlPanel({ onForecast, onCompare, loading }) {
 
   const handleForecast = () => {
     if (!activeTicker) return
-    onForecast({ ticker: activeTicker, start, end, model, window })
+    // Send client-side today so the backend doesn't depend on its own clock
+    const today = new Date().toISOString().slice(0, 10)
+    onForecast({ ticker: activeTicker, start, end, model, window, today })
   }
   const handleCompare = () => {
     if (!activeTicker) return
