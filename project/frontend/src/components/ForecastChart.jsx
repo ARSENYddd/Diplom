@@ -30,8 +30,7 @@ const SCENARIO_LABELS = {
 }
 
 // ─── Memoized chart core ─────────────────────────────────────────────────────
-// Receives ONLY chart-data props — never drawTool.
-// Result: switching drawing tools does NOT re-render the chart.
+// Does NOT receive drawTool → switching tools never re-renders or re-animates the chart
 const ChartCore = memo(function ChartCore({
   visibleData, yDomain, xTicks,
   hasFuture, futureSplitDate,
@@ -42,17 +41,14 @@ const ChartCore = memo(function ChartCore({
       <ComposedChart data={visibleData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
         <XAxis
-          dataKey="date"
-          ticks={xTicks}
+          dataKey="date" ticks={xTicks}
           tick={{ fill: '#94a3b8', fontSize: 11 }}
-          axisLine={{ stroke: '#334155' }}
-          tickLine={false}
+          axisLine={{ stroke: '#334155' }} tickLine={false}
         />
         <YAxis
           domain={yDomain}
           tick={{ fill: '#94a3b8', fontSize: 11 }}
-          axisLine={{ stroke: '#334155' }}
-          tickLine={false}
+          axisLine={{ stroke: '#334155' }} tickLine={false}
           tickFormatter={v => Math.abs(v) >= 1000 ? (v / 1000).toFixed(1) + 'k' : Number(v).toFixed(0)}
           width={68}
         />
@@ -64,38 +60,31 @@ const ChartCore = memo(function ChartCore({
 
         {futureSplitDate && (
           <ReferenceLine
-            x={futureSplitDate}
-            stroke="#4ade80" strokeWidth={1.5} strokeDasharray="4 2"
+            x={futureSplitDate} stroke="#4ade80" strokeWidth={1.5} strokeDasharray="4 2"
             label={{ value: 'Сегодня', fill: '#4ade80', fontSize: 10, position: 'insideTopRight' }}
           />
         )}
 
-        {/* Historical actual */}
         <Line type="monotone" dataKey="Реальные"
           stroke="#60a5fa" strokeWidth={1.5} dot={false}
           activeDot={{ r: 4 }} connectNulls={false} isAnimationActive={false} />
 
-        {/* Backtest prediction */}
         <Line type="monotone" dataKey="Прогноз"
           stroke="#f87171" strokeWidth={1.5} dot={false}
           strokeDasharray="5 2" activeDot={{ r: 4 }} connectNulls={false} isAnimationActive={false} />
 
-        {/* Base future forecast */}
         {hasFuture && (
           <Line type="monotone" dataKey="Базовый"
             stroke="#60a5fa" strokeWidth={2.5} dot={false}
             strokeDasharray="6 3" activeDot={{ r: 5 }} connectNulls={false} isAnimationActive={false} />
         )}
 
-        {/* Scenario lines */}
         {hasFuture && showScenarios && scenarios.map(sc =>
           !hiddenScenarios.has(sc.name) && (
-            <Line
-              key={sc.name} type="monotone" dataKey={sc.name}
+            <Line key={sc.name} type="monotone" dataKey={sc.name}
               stroke={sc.color} strokeWidth={1.5} dot={false}
               strokeDasharray="4 3" strokeOpacity={0.75}
-              activeDot={{ r: 4 }} connectNulls={false} isAnimationActive={false}
-            />
+              activeDot={{ r: 4 }} connectNulls={false} isAnimationActive={false} />
           )
         )}
       </ComposedChart>
@@ -105,29 +94,27 @@ const ChartCore = memo(function ChartCore({
 
 // ─── Main component ──────────────────────────────────────────────────────────
 export default function ForecastChart({ data }) {
-  // Drawing state
+  // ── All hooks must be called unconditionally (Rules of Hooks) ──────────────
   const [drawTool,        setDrawTool]        = useState('cursor')
   const [drawings,        setDrawings]        = useState([])
   const [hiddenScenarios, setHiddenScenarios] = useState(new Set())
   const [showScenarios,   setShowScenarios]   = useState(true)
+  const [viewStart,       setViewStart]       = useState(0)
+  const [viewEnd,         setViewEnd]         = useState(null) // null = show all
 
-  // View window (which slice of chartData is visible)
-  const [viewStart, setViewStart] = useState(0)
-  const [viewEnd,   setViewEnd]   = useState(null) // null = show all
+  const containerRef = useRef(null)
+  const chartAreaRef = useRef(null)
+  const drawToolRef  = useRef('cursor')
+  const vsRef        = useRef(0)
+  const veRef        = useRef(0)
+  const totalLenRef  = useRef(0)
+  const isDragging   = useRef(false)
+  const dragData     = useRef({ x: 0, startIdx: 0, endIdx: 0 })
 
-  // Refs for stable handlers (avoid re-creating callbacks on every render)
-  const containerRef  = useRef(null)
-  const chartAreaRef  = useRef(null)
-  const drawToolRef   = useRef('cursor')
-  const vsRef         = useRef(0)
-  const veRef         = useRef(0)
-  const totalLenRef   = useRef(0)
-  const isDragging    = useRef(false)
-  const dragData      = useRef({ x: 0, startIdx: 0, endIdx: 0 })
-
-  // Keep refs in sync
+  // Sync mutable refs
   useEffect(() => { drawToolRef.current = drawTool }, [drawTool])
   useEffect(() => { vsRef.current = viewStart },      [viewStart])
+  useEffect(() => { veRef.current = viewEnd ?? totalLenRef.current - 1 }, [viewEnd])
 
   // Ctrl+Z undo
   useEffect(() => {
@@ -139,54 +126,39 @@ export default function ForecastChart({ data }) {
     return () => window.removeEventListener('keydown', h)
   }, [])
 
-  const handleUndo  = useCallback(() => setDrawings(p => p.slice(0, -1)), [])
-  const handleClear = useCallback(() => setDrawings([]), [])
-
-  const toggleScenario = (name) =>
-    setHiddenScenarios(prev => {
-      const next = new Set(prev)
-      next.has(name) ? next.delete(name) : next.add(name)
-      return next
-    })
-
-  // ── Empty state ────────────────────────────────────────────────────────────
-  if (!data) return (
-    <div className="bg-slate-900 border border-slate-700 rounded-xl p-5 flex items-center justify-center h-72">
-      <p className="text-slate-500 text-sm">Запустите прогноз для отображения графика</p>
-    </div>
-  )
-
-  const testFrom   = data.test_from_index  ?? 0
-  const futureFrom = data.future_from_index ?? null
+  // Derive chart-level constants (safe with data=null via optional chaining)
+  const testFrom   = data?.test_from_index  ?? 0
+  const futureFrom = data?.future_from_index ?? null
   const hasFuture  = futureFrom !== null
-  const scenarios  = data.scenarios ?? []
+  const scenarios  = data?.scenarios ?? []
 
-  // ── Build flat chart data array ────────────────────────────────────────────
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const chartData = useMemo(() => data.dates.map((d, i) => {
-    const actual    = data.actual?.[i]    ?? null
-    const predicted = data.predicted?.[i] ?? null
-    const row = {
-      date:      d,
-      Реальные:  actual,
-      Прогноз:   (i >= testFrom && (!hasFuture || i < futureFrom)) ? predicted : null,
-      Базовый:   (hasFuture && i >= futureFrom) ? predicted : null,
-    }
-    if (hasFuture && scenarios.length > 0) {
-      scenarios.forEach(sc => {
-        const idx = i - futureFrom
-        row[sc.name] = (i >= futureFrom && idx < sc.values.length) ? sc.values[idx] : null
-      })
-    }
-    return row
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [data])
+  // Build unified flat data array (empty when no data)
+  const chartData = useMemo(() => {
+    if (!data) return []
+    return data.dates.map((d, i) => {
+      const actual    = data.actual?.[i]    ?? null
+      const predicted = data.predicted?.[i] ?? null
+      const row = {
+        date:     d,
+        Реальные: actual,
+        Прогноз:  (i >= testFrom && (!hasFuture || i < futureFrom)) ? predicted : null,
+        Базовый:  (hasFuture && i >= futureFrom) ? predicted : null,
+      }
+      if (hasFuture && scenarios.length > 0) {
+        scenarios.forEach(sc => {
+          const idx = i - futureFrom
+          row[sc.name] = (i >= futureFrom && idx < sc.values.length) ? sc.values[idx] : null
+        })
+      }
+      return row
+    })
+  }, [data, testFrom, futureFrom, hasFuture, scenarios])
 
   const totalLen = chartData.length
 
   // Reset view whenever new data arrives
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
+    if (!data) return
     setViewStart(0)
     setViewEnd(null)
     vsRef.current       = 0
@@ -194,25 +166,19 @@ export default function ForecastChart({ data }) {
     totalLenRef.current = totalLen
   }, [data, totalLen])
 
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  useEffect(() => {
-    veRef.current       = viewEnd ?? totalLen - 1
-    totalLenRef.current = totalLen
-  }, [viewEnd, totalLen])
+  // Keep totalLenRef in sync when it changes
+  useEffect(() => { totalLenRef.current = totalLen }, [totalLen])
 
-  // Computed indices
+  // Visible slice indices
   const vsIdx = viewStart
-  const veIdx = viewEnd ?? totalLen - 1
+  const veIdx = viewEnd ?? Math.max(0, totalLen - 1)
 
-  // Visible slice & derived values
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   const visibleData = useMemo(
     () => chartData.slice(vsIdx, veIdx + 1),
     [chartData, vsIdx, veIdx]
   )
 
-  // Y domain auto-scaled to visible data
-  // eslint-disable-next-line react-hooks/rules-of-hooks
+  // Y domain — auto-scaled to visible data
   const yDomain = useMemo(() => {
     const keys = ['Реальные', 'Прогноз', 'Базовый', ...scenarios.map(s => s.name)]
     const vals  = visibleData
@@ -225,25 +191,13 @@ export default function ForecastChart({ data }) {
     return [mn - pad, mx + pad]
   }, [visibleData, scenarios])
 
-  // X-axis ticks — at most 8 labels
-  // eslint-disable-next-line react-hooks/rules-of-hooks
+  // X ticks — at most 8 labels
   const xTicks = useMemo(() => {
     const every = Math.max(1, Math.floor(visibleData.length / 8))
     return visibleData.filter((_, i) => i % every === 0).map(d => d.date)
   }, [visibleData])
 
-  const futureSplitDate = hasFuture ? data.dates[futureFrom] : null
-  // Only show the reference line if the split date is currently visible
-  const visibleFutureSplit =
-    futureSplitDate && visibleData.some(d => d.date === futureSplitDate)
-      ? futureSplitDate
-      : null
-
-  // Zoom % for UI indicator
-  const zoomPct = Math.round(((veIdx - vsIdx + 1) / totalLen) * 100)
-
-  // ── Wheel zoom (passive:false required to call preventDefault) ─────────────
-  // eslint-disable-next-line react-hooks/rules-of-hooks
+  // Wheel zoom (passive:false to allow preventDefault)
   useEffect(() => {
     const el = chartAreaRef.current
     if (!el) return
@@ -252,18 +206,14 @@ export default function ForecastChart({ data }) {
       const vs    = vsRef.current
       const ve    = veRef.current
       const len   = totalLenRef.current
-      const count = ve - vs + 1
-
-      // 12% of visible range per tick, min 5 bars
+      if (len === 0) return
+      const count  = ve - vs + 1
       const step   = Math.max(5, Math.round(count * 0.12))
       const zoomIn = e.deltaY < 0
-
-      // Zoom relative to mouse cursor X position
-      const rect  = el.getBoundingClientRect()
-      const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
-
-      const dL = Math.round(step * ratio)
-      const dR = step - dL
+      const rect   = el.getBoundingClientRect()
+      const ratio  = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
+      const dL     = Math.round(step * ratio)
+      const dR     = step - dL
 
       let newStart, newEnd
       if (zoomIn) {
@@ -273,45 +223,61 @@ export default function ForecastChart({ data }) {
         newStart = Math.max(0, vs - dL)
         newEnd   = Math.min(len - 1, ve + dR)
       }
-
       setViewStart(newStart)
       setViewEnd(newEnd >= len - 1 ? null : newEnd)
     }
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
-  }, []) // stable — reads values from refs
+  }, []) // stable — all values read from refs
 
-  // ── Pan drag (cursor mode only) ────────────────────────────────────────────
+  // Pan (drag in cursor mode)
   const handleMouseDown = useCallback((e) => {
     if (drawToolRef.current !== 'cursor' || e.button !== 0) return
     isDragging.current = true
-    dragData.current   = {
-      x:        e.clientX,
-      startIdx: vsRef.current,
-      endIdx:   veRef.current,
-    }
+    dragData.current   = { x: e.clientX, startIdx: vsRef.current, endIdx: veRef.current }
   }, [])
 
   const handleMouseMove = useCallback((e) => {
     if (!isDragging.current || drawToolRef.current !== 'cursor') return
     const el = chartAreaRef.current
     if (!el) return
-    const rect        = el.getBoundingClientRect()
+    const rect      = el.getBoundingClientRect()
     const { x, startIdx, endIdx } = dragData.current
-    const pixPerBar   = rect.width / Math.max(1, endIdx - startIdx + 1)
-    const shift       = Math.round(-(e.clientX - x) / pixPerBar)
-    const range       = endIdx - startIdx
-    const len         = totalLenRef.current
-    const newStart    = Math.max(0, Math.min(len - 1 - range, startIdx + shift))
-    const newEnd      = newStart + range
+    const pxPerBar  = rect.width / Math.max(1, endIdx - startIdx + 1)
+    const shift     = Math.round(-(e.clientX - x) / pxPerBar)
+    const range     = endIdx - startIdx
+    const len       = totalLenRef.current
+    const newStart  = Math.max(0, Math.min(len - 1 - range, startIdx + shift))
+    const newEnd    = newStart + range
     setViewStart(newStart)
     setViewEnd(newEnd >= len - 1 ? null : newEnd)
   }, [])
 
   const handleMouseUp = useCallback(() => { isDragging.current = false }, [])
 
+  const handleUndo  = useCallback(() => setDrawings(p => p.slice(0, -1)), [])
+  const handleClear = useCallback(() => setDrawings([]), [])
+
+  const toggleScenario = useCallback((name) => {
+    setHiddenScenarios(prev => {
+      const next = new Set(prev)
+      next.has(name) ? next.delete(name) : next.add(name)
+      return next
+    })
+  }, [])
+
+  // ── Early return AFTER all hooks ───────────────────────────────────────────
+  if (!data) return (
+    <div className="bg-slate-900 border border-slate-700 rounded-xl p-5 flex items-center justify-center h-72">
+      <p className="text-slate-500 text-sm">Запустите прогноз для отображения графика</p>
+    </div>
+  )
+
   // ── Render ─────────────────────────────────────────────────────────────────
-  const isCursor = drawTool === 'cursor'
+  const futureSplitDate    = hasFuture ? data.dates[futureFrom] : null
+  const visibleFutureSplit = futureSplitDate && visibleData.some(d => d.date === futureSplitDate)
+    ? futureSplitDate : null
+  const zoomPct = totalLen > 0 ? Math.round(((veIdx - vsIdx + 1) / totalLen) * 100) : 100
 
   return (
     <div className="bg-slate-900 border border-slate-700 rounded-xl p-5 space-y-3">
@@ -323,7 +289,6 @@ export default function ForecastChart({ data }) {
           Рисунок 9 — Реальные vs Предсказанные значения{hasFuture && ' + сценарии'}
         </h2>
         <div className="flex items-center gap-2">
-          {/* Zoom indicator + reset */}
           {zoomPct < 99 && (
             <button
               onClick={() => { setViewStart(0); setViewEnd(null) }}
@@ -363,9 +328,7 @@ export default function ForecastChart({ data }) {
             const hidden = hiddenScenarios.has(sc.name)
             const meta   = SCENARIO_LABELS[sc.name] ?? {}
             return (
-              <button
-                key={sc.name}
-                onClick={() => toggleScenario(sc.name)}
+              <button key={sc.name} onClick={() => toggleScenario(sc.name)}
                 title={meta.desc}
                 className={`text-xs px-2 py-0.5 rounded border transition-all flex items-center gap-1 ${
                   hidden ? 'border-slate-700 text-slate-600' : 'border-slate-600 text-slate-300 hover:border-slate-400'
@@ -383,35 +346,29 @@ export default function ForecastChart({ data }) {
 
       {/* Drawing toolbar */}
       <DrawingToolbar
-        tool={drawTool}
-        onToolChange={setDrawTool}
-        onUndo={handleUndo}
-        onClear={handleClear}
+        tool={drawTool} onToolChange={setDrawTool}
+        onUndo={handleUndo} onClear={handleClear}
         drawingCount={drawings.length}
       />
 
-      {/* Zoom hint */}
-      <p className="text-xs text-slate-600 flex items-center gap-1 -mt-1">
+      {/* Hint */}
+      <p className="text-xs text-slate-600 flex items-center gap-1">
         <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
           <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35" strokeLinecap="round"/>
         </svg>
         Колесо мыши — масштаб · Перетащи — прокрутка
       </p>
 
-      {/* Chart + drawing overlay */}
+      {/* Chart area */}
       <div ref={containerRef} style={{ position: 'relative' }}>
-        {/* Pan / wheel target */}
         <div
           ref={chartAreaRef}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
-          style={{
-            position: 'relative',
-            cursor:   isCursor ? (isDragging.current ? 'grabbing' : 'grab') : 'default',
-            userSelect: 'none',
-          }}
+          style={{ position: 'relative', userSelect: 'none',
+            cursor: drawTool === 'cursor' ? 'grab' : 'default' }}
         >
           <ChartCore
             visibleData={visibleData}
@@ -424,25 +381,22 @@ export default function ForecastChart({ data }) {
             showScenarios={showScenarios}
           />
           <DrawingLayer
-            tool={drawTool}
-            drawings={drawings}
-            onDrawingsChange={setDrawings}
-            containerRef={containerRef}
+            tool={drawTool} drawings={drawings}
+            onDrawingsChange={setDrawings} containerRef={containerRef}
           />
         </div>
       </div>
 
-      {/* Bottom legend */}
+      {/* Legend */}
       <div className="flex gap-4 flex-wrap text-xs text-slate-500">
         <span><span className="text-blue-400">━</span> Реальные цены</span>
         <span><span className="text-red-400">╌</span> Прогноз (бэктест)</span>
         {hasFuture && <span><span className="text-blue-400">╌ ╌</span> Базовый сценарий</span>}
         {hasFuture && scenarios.length > 0 && (
           <span>
-            <span className="text-red-400">╌</span>
-            <span className="text-orange-400">╌</span>
-            <span className="text-green-400">╌</span>
-            <span className="text-emerald-400">╌</span> Сценарии: медвежий → бычий
+            <span className="text-red-400">╌</span><span className="text-orange-400">╌</span>
+            <span className="text-green-400">╌</span><span className="text-emerald-400">╌</span>
+            {' '}Сценарии: медвежий → бычий
           </span>
         )}
         <span className="ml-auto text-slate-600">↑ Инструменты рисования</span>
