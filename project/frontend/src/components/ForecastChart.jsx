@@ -29,6 +29,72 @@ const SCENARIO_LABELS = {
   'Бычий':         { emoji: '🐂', desc: 'Позитивный сценарий' },
 }
 
+// ─── Mini scrollbar ──────────────────────────────────────────────────────────
+function Scrollbar({ vsIdx, veIdx, totalLen, onRange }) {
+  const trackRef  = useRef(null)
+  const dragging  = useRef(false)
+  const dragStart = useRef({ x: 0, vs: 0, ve: 0 })
+
+  const thumbLeft  = vsIdx / totalLen
+  const thumbWidth = (veIdx - vsIdx + 1) / totalLen
+
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v))
+
+  const posToIdx = (clientX) => {
+    const rect = trackRef.current?.getBoundingClientRect()
+    if (!rect) return 0
+    return clamp(Math.round((clientX - rect.left) / rect.width * totalLen), 0, totalLen - 1)
+  }
+
+  const onTrackClick = (e) => {
+    if (dragging.current) return
+    const rect  = trackRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const ratio = (e.clientX - rect.left) / rect.width
+    const range = veIdx - vsIdx
+    const mid   = Math.round(ratio * totalLen)
+    const ns    = clamp(mid - Math.round(range / 2), 0, totalLen - 1 - range)
+    onRange(ns, ns + range)
+  }
+
+  const onThumbDown = (e) => {
+    e.stopPropagation()
+    dragging.current  = true
+    dragStart.current = { x: e.clientX, vs: vsIdx, ve: veIdx }
+    const onMove = (ev) => {
+      if (!dragging.current) return
+      const rect  = trackRef.current?.getBoundingClientRect()
+      if (!rect) return
+      const pxPerBar = rect.width / totalLen
+      const shift    = Math.round((ev.clientX - dragStart.current.x) / pxPerBar)
+      const range    = dragStart.current.ve - dragStart.current.vs
+      const ns       = clamp(dragStart.current.vs + shift, 0, totalLen - 1 - range)
+      onRange(ns, ns + range)
+    }
+    const onUp = () => { dragging.current = false; window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+
+  return (
+    <div
+      ref={trackRef}
+      onClick={onTrackClick}
+      className="relative h-5 bg-slate-800 rounded-full border border-slate-700 cursor-pointer mx-1"
+    >
+      {/* Track fill */}
+      <div className="absolute inset-y-0 rounded-full bg-slate-700/50"
+        style={{ left: '0%', width: '100%' }} />
+      {/* Thumb */}
+      <div
+        onMouseDown={onThumbDown}
+        className="absolute inset-y-0.5 rounded-full bg-indigo-500/70 hover:bg-indigo-400/80 border border-indigo-400/50 cursor-grab active:cursor-grabbing transition-colors"
+        style={{ left: `${thumbLeft * 100}%`, width: `${Math.max(thumbWidth * 100, 4)}%` }}
+      />
+    </div>
+  )
+}
+
 // ─── Memoized chart core ─────────────────────────────────────────────────────
 // Does NOT receive drawTool → switching tools never re-renders or re-animates the chart
 const ChartCore = memo(function ChartCore({
@@ -197,16 +263,31 @@ export default function ForecastChart({ data }) {
     return visibleData.filter((_, i) => i % every === 0).map(d => d.date)
   }, [visibleData])
 
-  // Wheel zoom (passive:false to allow preventDefault)
+  // Wheel: vertical = zoom, horizontal (trackpad swipe) = pan
   useEffect(() => {
     const el = chartAreaRef.current
     if (!el) return
     const onWheel = (e) => {
       e.preventDefault()
-      const vs    = vsRef.current
-      const ve    = veRef.current
-      const len   = totalLenRef.current
+      const vs  = vsRef.current
+      const ve  = veRef.current
+      const len = totalLenRef.current
       if (len === 0) return
+
+      // Horizontal swipe (trackpad) → pan
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+        const count    = ve - vs + 1
+        const pxPerBar = el.getBoundingClientRect().width / Math.max(1, count)
+        const shift    = Math.round(e.deltaX / pxPerBar)
+        const range    = ve - vs
+        const newStart = Math.max(0, Math.min(len - 1 - range, vs + shift))
+        const newEnd   = newStart + range
+        setViewStart(newStart)
+        setViewEnd(newEnd >= len - 1 ? null : newEnd)
+        return
+      }
+
+      // Vertical scroll → zoom around cursor
       const count  = ve - vs + 1
       const step   = Math.max(5, Math.round(count * 0.12))
       const zoomIn = e.deltaY < 0
@@ -228,7 +309,7 @@ export default function ForecastChart({ data }) {
     }
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
-  }, []) // stable — all values read from refs
+  }, [])
 
   // Pan (drag in cursor mode)
   const handleMouseDown = useCallback((e) => {
@@ -356,7 +437,7 @@ export default function ForecastChart({ data }) {
         <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
           <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35" strokeLinecap="round"/>
         </svg>
-        Колесо мыши — масштаб · Перетащи — прокрутка
+        Колесо / щипок — масштаб · Свайп двумя пальцами или перетащи — прокрутка
       </p>
 
       {/* Chart area */}
@@ -386,6 +467,14 @@ export default function ForecastChart({ data }) {
           />
         </div>
       </div>
+
+      {/* Scrollbar */}
+      {totalLen > 0 && (
+        <Scrollbar
+          vsIdx={vsIdx} veIdx={veIdx} totalLen={totalLen}
+          onRange={(s, e) => { setViewStart(s); setViewEnd(e >= totalLen - 1 ? null : e) }}
+        />
+      )}
 
       {/* Legend */}
       <div className="flex gap-4 flex-wrap text-xs text-slate-500">
