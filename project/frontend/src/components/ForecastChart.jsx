@@ -1,6 +1,6 @@
 import {
-  ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  Legend, ResponsiveContainer, Brush, ReferenceLine
+  ComposedChart, Line, XAxis, YAxis, CartesianGrid,
+  Tooltip, Legend, ResponsiveContainer, Brush, ReferenceLine
 } from 'recharts'
 
 const CustomTooltip = ({ active, payload, label }) => {
@@ -24,20 +24,23 @@ export default function ForecastChart({ data }) {
     </div>
   )
 
+  const testFrom   = data.test_from_index  ?? 0
   const futureFrom = data.future_from_index ?? null
-  const isFutureMode = futureFrom !== null
+  const hasFuture  = futureFrom !== null
 
-  const chartData = data.dates.map((d, i) => ({
-    date: d,
-    Реальные: data.actual?.[i] ?? null,
-    Прогноз: (!isFutureMode || i < futureFrom) ? (data.predicted?.[i] ?? null) : null,
-    Будущее: (isFutureMode && i >= futureFrom) ? (data.predicted?.[i] ?? null) : null,
-  }))
+  const chartData = data.dates.map((d, i) => {
+    const actual    = data.actual?.[i]    ?? null
+    const predicted = data.predicted?.[i] ?? null
+    return {
+      date: d,
+      Реальные:  actual,
+      Прогноз:   (i >= testFrom && (!hasFuture || i < futureFrom)) ? predicted : null,
+      Будущее:   (hasFuture && i >= futureFrom) ? predicted : null,
+    }
+  })
 
-  // First date of future section for reference line
-  const futureSplitDate = isFutureMode ? data.dates[futureFrom] : null
-
-  const tickEvery = Math.max(1, Math.floor(chartData.length / 12))
+  const futureSplitDate = hasFuture ? data.dates[futureFrom] : null
+  const tickEvery = Math.max(1, Math.floor(chartData.length / 14))
   const ticks = chartData.filter((_, i) => i % tickEvery === 0).map(d => d.date)
 
   return (
@@ -45,15 +48,17 @@ export default function ForecastChart({ data }) {
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-sm font-semibold text-white flex items-center gap-2">
           <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block" />
-          {isFutureMode ? 'Прогноз в будущее' : 'Рисунок 9 — Реальные vs Предсказанные'}
+          Рисунок 9 — Реальные vs Предсказанные значения
+          {hasFuture && ' + прогноз'}
         </h2>
-        {isFutureMode && (
+        {hasFuture && (
           <span className="text-xs px-2 py-1 rounded bg-emerald-900/40 border border-emerald-700 text-emerald-300">
             Прогноз с {futureSplitDate}
           </span>
         )}
       </div>
-      <ResponsiveContainer width="100%" height={300}>
+
+      <ResponsiveContainer width="100%" height={320}>
         <ComposedChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
           <XAxis
@@ -64,7 +69,7 @@ export default function ForecastChart({ data }) {
           <YAxis
             tick={{ fill: '#94a3b8', fontSize: 11 }}
             axisLine={{ stroke: '#334155' }} tickLine={false}
-            tickFormatter={v => v.toFixed(0)} width={60}
+            tickFormatter={v => v.toFixed(0)} width={62}
           />
           <Tooltip content={<CustomTooltip />} />
           <Legend
@@ -75,24 +80,25 @@ export default function ForecastChart({ data }) {
 
           {futureSplitDate && (
             <ReferenceLine
-              x={futureSplitDate} stroke="#4ade80" strokeDasharray="4 2"
-              label={{ value: 'Сегодня', fill: '#4ade80', fontSize: 10, position: 'top' }}
+              x={futureSplitDate} stroke="#4ade80" strokeWidth={1.5} strokeDasharray="4 2"
+              label={{ value: 'Сегодня', fill: '#4ade80', fontSize: 10, position: 'insideTopRight' }}
             />
           )}
 
+          {/* Actual prices — always shown */}
           <Line
             type="monotone" dataKey="Реальные"
             stroke="#60a5fa" strokeWidth={1.5} dot={false}
             activeDot={{ r: 4 }} connectNulls={false}
           />
-          {!isFutureMode && (
-            <Line
-              type="monotone" dataKey="Прогноз"
-              stroke="#f87171" strokeWidth={1.5} dot={false}
-              strokeDasharray="4 2" activeDot={{ r: 4 }} connectNulls={false}
-            />
-          )}
-          {isFutureMode && (
+          {/* Backtest predictions — shown on test period */}
+          <Line
+            type="monotone" dataKey="Прогноз"
+            stroke="#f87171" strokeWidth={1.5} dot={false}
+            strokeDasharray="5 2" activeDot={{ r: 4 }} connectNulls={false}
+          />
+          {/* Future forecast — green dashed, only when future date selected */}
+          {hasFuture && (
             <Line
               type="monotone" dataKey="Будущее"
               stroke="#4ade80" strokeWidth={2} dot={false}
@@ -101,11 +107,12 @@ export default function ForecastChart({ data }) {
           )}
         </ComposedChart>
       </ResponsiveContainer>
-      {isFutureMode && (
-        <p className="text-xs text-slate-500 mt-2 text-center">
-          Синяя линия — исторические данные · Зелёная — прогноз модели
-        </p>
-      )}
+
+      <div className="flex gap-4 mt-2 text-xs text-slate-500">
+        <span><span className="text-blue-400">━</span> Реальные цены</span>
+        <span><span className="text-red-400">╌</span> Прогноз модели (бэктест)</span>
+        {hasFuture && <span><span className="text-emerald-400">╌</span> Прогноз в будущее (bootstrap)</span>}
+      </div>
     </div>
   )
 }
