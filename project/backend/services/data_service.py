@@ -1,4 +1,5 @@
 import yfinance as yf
+import httpx
 import pandas as pd
 import numpy as np
 from datetime import datetime
@@ -12,6 +13,90 @@ os.makedirs(CACHE_DIR, exist_ok=True)
 
 _memory_cache: dict = {}
 
+# ---------------------------------------------------------------------------
+# MOEX ISS (Moscow Exchange Information & Statistical Server)
+# Public API, no auth required. Docs: https://iss.moex.com/iss/reference/
+# ---------------------------------------------------------------------------
+_MOEX_HISTORY_URL = (
+    "https://iss.moex.com/iss/history/engines/stock/markets/shares"
+    "/boards/TQBR/securities/{symbol}.json"
+)
+_MOEX_PAGE_SIZE = 100   # ISS returns max 100 rows per request
+
+
+def _load_moex(ticker_me: str, start: str, end: str) -> pd.DataFrame:
+    """
+    Fetch daily close prices from the Moscow Exchange (MOEX ISS API).
+    Handles pagination automatically (ISS caps at 100 rows / request).
+
+    ticker_me: ticker with optional .ME suffix, e.g. 'SBER.ME' or 'SBER'
+    start / end: ISO date strings 'YYYY-MM-DD'
+    """
+    symbol = ticker_me.upper().replace(".ME", "")
+    url = _MOEX_HISTORY_URL.format(symbol=symbol)
+
+    all_rows: list = []
+    offset = 0
+
+    with httpx.Client(timeout=30) as client:
+        while True:
+            params = {
+                "from":     start,
+                "till":     end,
+                "start":    offset,
+                "iss.meta": "off",
+                "iss.only": "history",
+            }
+            resp = client.get(url, params=params)
+            resp.raise_for_status()
+            js = resp.json()
+
+            history = js.get("history", {})
+            columns = history.get("columns", [])
+            rows    = history.get("data",    [])
+
+            if not rows:
+                break
+
+            all_rows.extend(rows)
+
+            if len(rows) < _MOEX_PAGE_SIZE:
+                break          # last page
+            offset += len(rows)
+
+    if not all_rows:
+        raise ValueError(
+            f"Нет данных MOEX для тикера {symbol} за период {start}–{end}. "
+            "Проверьте правильность тикера (используйте обозначение без '.ME', "
+            "например: SBER, GAZP, LKOH)."
+        )
+
+    col_idx   = {c: i for i, c in enumerate(columns)}
+    date_col  = col_idx["TRADEDATE"]
+    close_col = col_idx["CLOSE"]
+
+    records = [
+        (r[date_col], r[close_col])
+        for r in all_rows
+        if r[close_col] is not None
+    ]
+
+    df = pd.DataFrame(records, columns=["Date", "Close"])
+    df["Date"]  = pd.to_datetime(df["Date"])
+    df["Close"] = df["Close"].astype(float)
+    df = df.set_index("Date").sort_index().dropna()
+
+    if df.empty:
+        raise ValueError(
+            f"MOEX вернул данные, но все значения Close равны None для {symbol}."
+        )
+
+    return df
+
+
+# ---------------------------------------------------------------------------
+# Generic helpers
+# ---------------------------------------------------------------------------
 
 def _cache_key(ticker: str, start: str, end: str) -> str:
     raw = f"{ticker}_{start}_{end}"
@@ -22,8 +107,13 @@ def _disk_cache_path(key: str) -> str:
     return os.path.join(CACHE_DIR, f"{key}.pkl")
 
 
+def _is_moex_ticker(ticker: str) -> bool:
+    """Return True for Moscow Exchange tickers (end with .ME or no dot and known MOEX symbols)."""
+    return ticker.upper().endswith(".ME")
+
+
 def load_data(ticker: str, start: str, end: str) -> pd.DataFrame:
-    key = _cache_key(ticker, start, end)
+    key      = _cache_key(ticker, start, end)
 
     if key in _memory_cache:
         return _memory_cache[key]
@@ -35,24 +125,21 @@ def load_data(ticker: str, start: str, end: str) -> pd.DataFrame:
         _memory_cache[key] = df
         return df
 
-    df = yf.download(ticker, start=start, end=end, progress=False, auto_adjust=True)
-    if df.empty:
-        moex_hint = (
-            " Yahoo Finance не предоставляет данные MOEX после мая 2022 г. (санкции)."
-            " Установите дату окончания не позже 2022-05-01."
-            if ticker.endswith(".ME") else ""
-        )
-        raise ValueError(
-            f"Нет данных для тикера {ticker} за период {start}–{end}.{moex_hint}"
-        )
+    # --- Choose data source ---
+    if _is_moex_ticker(ticker):
+        df = _load_moex(ticker, start, end)
+    else:
+        df = yf.download(ticker, start=start, end=end, progress=False, auto_adjust=True)
+        if df.empty:
+            raise ValueError(f"Нет данных для тикера {ticker} за период {start}–{end}.")
 
-    # newer yfinance returns MultiIndex columns (Price, Ticker) — flatten
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = df.columns.droplevel(1)
+        # newer yfinance returns MultiIndex columns (Price, Ticker) — flatten
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.droplevel(1)
 
-    df = df[["Close"]].copy()
-    df.index = pd.to_datetime(df.index)
-    df = df.dropna()
+        df = df[["Close"]].copy()
+        df.index = pd.to_datetime(df.index)
+        df = df.dropna()
 
     with open(disk_path, "wb") as f:
         pickle.dump(df, f)
@@ -61,13 +148,13 @@ def load_data(ticker: str, start: str, end: str) -> pd.DataFrame:
 
 
 def get_price_series(ticker: str, start: str, end: str) -> Tuple[list, list]:
-    df = load_data(ticker, start, end)
-    dates = [d.strftime("%Y-%m-%d") for d in df.index]
-    prices = [round(float(p), 2) for p in df["Close"].values]
+    df     = load_data(ticker, start, end)
+    dates  = [d.strftime("%Y-%m-%d") for d in df.index]
+    prices = [round(float(p), 4) for p in df["Close"].values]
     return dates, prices
 
 
 def train_test_split_series(df: pd.DataFrame, test_ratio: float = 0.2):
-    n = len(df)
+    n     = len(df)
     split = int(n * (1 - test_ratio))
     return df.iloc[:split], df.iloc[split:]

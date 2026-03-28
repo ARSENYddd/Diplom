@@ -1,10 +1,5 @@
 import { useState } from 'react'
 
-// MOEX tickers: Yahoo Finance stopped providing data after 2022-05-24 due to sanctions.
-// We mark them and auto-set dates accordingly.
-const MOEX_LAST_DATE = '2022-05-01'
-const MOEX_START_DATE = '2015-01-01'
-
 const TICKER_GROUPS = [
   {
     group: '🇺🇸 США — Индексы',
@@ -105,13 +100,13 @@ export default function ControlPanel({ onForecast, onCompare, loading }) {
   const tickerLabel  = meta?.label ?? activeTicker
   const isMoex       = meta?.moex ?? activeTicker.endsWith('.ME')
 
-  // When user picks a MOEX ticker from the list, auto-adjust dates
+  // When user picks a MOEX ticker, set sensible date defaults
   const handleTickerChange = (val) => {
     setTicker(val)
     const m = TICKER_META[val]
     if (m?.moex) {
-      setStart(MOEX_START_DATE)
-      setEnd(MOEX_LAST_DATE)
+      setStart('2015-01-01')
+      setEnd('2024-01-01')
     }
   }
 
@@ -144,6 +139,23 @@ export default function ControlPanel({ onForecast, onCompare, loading }) {
             <span className="ml-2 text-slate-500 font-normal">{tickerLabel}</span>
           )}
         </label>
+
+        {/* Data source badge */}
+        {activeTicker && (
+          <div className="mb-2">
+            {isMoex ? (
+              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-emerald-900/40 border border-emerald-700 text-emerald-300">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
+                Источник: MOEX ISS (актуальные данные)
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-blue-900/40 border border-blue-700 text-blue-300">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 inline-block" />
+                Источник: Yahoo Finance
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Toggle: list vs custom */}
         <div className="flex gap-1 mb-2">
@@ -194,17 +206,6 @@ export default function ControlPanel({ onForecast, onCompare, loading }) {
             ))}
           </select>
         )}
-
-        {/* MOEX warning */}
-        {isMoex && (
-          <p className="mt-2 text-xs text-amber-400 flex items-start gap-1.5">
-            <svg className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-            </svg>
-            Yahoo Finance не публикует данные MOEX после мая 2022 г. (санкции). Даты скорректированы автоматически.
-          </p>
-        )}
       </div>
 
       {/* Date range */}
@@ -218,7 +219,7 @@ export default function ControlPanel({ onForecast, onCompare, loading }) {
           <input type="date" value={end} onChange={e => setEnd(e.target.value)} className={inputCls} />
         </div>
       </div>
-      {new Date(end) > new Date() && !isMoex && (
+      {new Date(end) > new Date() && (
         <p className="text-xs text-emerald-400 -mt-3 flex items-center gap-1">
           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
