@@ -1,6 +1,9 @@
 import sys
 import os
+import logging
+import traceback
 sys.path.insert(0, os.path.dirname(__file__))
+logging.basicConfig(level=logging.INFO)
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -77,6 +80,7 @@ async def forecast(req: ForecastRequest):
         )
         return result
     except Exception as e:
+        logging.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
 
 

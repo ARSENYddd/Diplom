@@ -20,7 +20,7 @@ try:
     import tensorflow as tf
     tf.get_logger().setLevel("ERROR")
     from tensorflow.keras.models import Sequential
-    from tensorflow.keras.layers import LSTM, Dense, Dropout
+    from tensorflow.keras.layers import LSTM, Dense, Dropout, Input
     from tensorflow.keras.callbacks import EarlyStopping
     HAS_TF = True
 except ImportError:
@@ -76,7 +76,8 @@ def run_hybrid(ticker: str, start: str, end: str, window: int = 60) -> dict:
     X_res = X_res.reshape(X_res.shape[0], X_res.shape[1], 1)
 
     lstm_model = Sequential([
-        LSTM(64, return_sequences=True, input_shape=(window, 1)),
+        Input(shape=(window, 1)),
+        LSTM(64, return_sequences=True),
         Dropout(0.2),
         LSTM(64, return_sequences=False),
         Dropout(0.2),
