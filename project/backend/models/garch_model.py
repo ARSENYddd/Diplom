@@ -31,7 +31,7 @@ def run_garch(ticker: str, start: str, end: str, window: int = 60) -> dict:
         # Forecast next return (mean component)
         fc = r.forecast(horizon=1)
         next_return = float(fc.mean.iloc[-1, 0]) / 100  # back to decimal
-        last_price = all_prices[n_train + i]  # last known price
+        last_price = all_prices[n_train + i - 1]  # previous known price (not current!)
         pred_price = last_price * np.exp(next_return)
         predictions.append(float(pred_price))
 
