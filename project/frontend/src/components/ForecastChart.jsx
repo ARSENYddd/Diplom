@@ -1,7 +1,10 @@
+import { useState, useRef, useCallback, useEffect } from 'react'
 import {
   ComposedChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer, Brush, ReferenceLine
 } from 'recharts'
+import DrawingLayer from './DrawingLayer'
+import DrawingToolbar from './DrawingToolbar'
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null
@@ -18,6 +21,24 @@ const CustomTooltip = ({ active, payload, label }) => {
 }
 
 export default function ForecastChart({ data }) {
+  const [drawTool,    setDrawTool]    = useState('cursor')
+  const [drawings,    setDrawings]    = useState([])
+  const containerRef  = useRef(null)
+
+  // Ctrl+Z → undo
+  useEffect(() => {
+    const handler = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        setDrawings(prev => prev.slice(0, -1))
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
+
+  const handleUndo  = useCallback(() => setDrawings(p => p.slice(0, -1)), [])
+  const handleClear = useCallback(() => setDrawings([]), [])
+
   if (!data) return (
     <div className="bg-slate-900 border border-slate-700 rounded-xl p-5 flex items-center justify-center h-72">
       <p className="text-slate-500 text-sm">Запустите прогноз для отображения графика</p>
@@ -45,7 +66,8 @@ export default function ForecastChart({ data }) {
 
   return (
     <div className="bg-slate-900 border border-slate-700 rounded-xl p-5">
-      <div className="flex items-center justify-between mb-4">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
         <h2 className="text-sm font-semibold text-white flex items-center gap-2">
           <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block" />
           Рисунок 9 — Реальные vs Предсказанные значения
@@ -58,60 +80,78 @@ export default function ForecastChart({ data }) {
         )}
       </div>
 
-      <ResponsiveContainer width="100%" height={320}>
-        <ComposedChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-          <XAxis
-            dataKey="date" ticks={ticks}
-            tick={{ fill: '#94a3b8', fontSize: 11 }}
-            axisLine={{ stroke: '#334155' }} tickLine={false}
-          />
-          <YAxis
-            tick={{ fill: '#94a3b8', fontSize: 11 }}
-            axisLine={{ stroke: '#334155' }} tickLine={false}
-            tickFormatter={v => v.toFixed(0)} width={62}
-          />
-          <Tooltip content={<CustomTooltip />} />
-          <Legend
-            wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
-            formatter={val => <span style={{ color: '#cbd5e1' }}>{val}</span>}
-          />
-          <Brush dataKey="date" height={20} stroke="#334155" fill="#0f172a" travellerWidth={8} />
+      {/* Drawing toolbar */}
+      <div className="mb-3">
+        <DrawingToolbar
+          tool={drawTool}
+          onToolChange={setDrawTool}
+          onUndo={handleUndo}
+          onClear={handleClear}
+          drawingCount={drawings.length}
+        />
+      </div>
 
-          {futureSplitDate && (
-            <ReferenceLine
-              x={futureSplitDate} stroke="#4ade80" strokeWidth={1.5} strokeDasharray="4 2"
-              label={{ value: 'Сегодня', fill: '#4ade80', fontSize: 10, position: 'insideTopRight' }}
+      {/* Chart + drawing overlay */}
+      <div ref={containerRef} style={{ position: 'relative' }}>
+        <ResponsiveContainer width="100%" height={320}>
+          <ComposedChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+            <XAxis
+              dataKey="date" ticks={ticks}
+              tick={{ fill: '#94a3b8', fontSize: 11 }}
+              axisLine={{ stroke: '#334155' }} tickLine={false}
             />
-          )}
-
-          {/* Actual prices — always shown */}
-          <Line
-            type="monotone" dataKey="Реальные"
-            stroke="#60a5fa" strokeWidth={1.5} dot={false}
-            activeDot={{ r: 4 }} connectNulls={false}
-          />
-          {/* Backtest predictions — shown on test period */}
-          <Line
-            type="monotone" dataKey="Прогноз"
-            stroke="#f87171" strokeWidth={1.5} dot={false}
-            strokeDasharray="5 2" activeDot={{ r: 4 }} connectNulls={false}
-          />
-          {/* Future forecast — green dashed, only when future date selected */}
-          {hasFuture && (
-            <Line
-              type="monotone" dataKey="Будущее"
-              stroke="#4ade80" strokeWidth={2} dot={false}
-              strokeDasharray="6 3" activeDot={{ r: 5 }} connectNulls={false}
+            <YAxis
+              tick={{ fill: '#94a3b8', fontSize: 11 }}
+              axisLine={{ stroke: '#334155' }} tickLine={false}
+              tickFormatter={v => v.toFixed(0)} width={62}
             />
-          )}
-        </ComposedChart>
-      </ResponsiveContainer>
+            {/* Tooltip only works in cursor mode */}
+            {drawTool === 'cursor' && <Tooltip content={<CustomTooltip />} />}
+            <Legend
+              wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
+              formatter={val => <span style={{ color: '#cbd5e1' }}>{val}</span>}
+            />
+            <Brush dataKey="date" height={20} stroke="#334155" fill="#0f172a" travellerWidth={8} />
 
+            {futureSplitDate && (
+              <ReferenceLine
+                x={futureSplitDate} stroke="#4ade80" strokeWidth={1.5} strokeDasharray="4 2"
+                label={{ value: 'Сегодня', fill: '#4ade80', fontSize: 10, position: 'insideTopRight' }}
+              />
+            )}
+
+            <Line type="monotone" dataKey="Реальные"
+              stroke="#60a5fa" strokeWidth={1.5} dot={false}
+              activeDot={{ r: 4 }} connectNulls={false} />
+
+            <Line type="monotone" dataKey="Прогноз"
+              stroke="#f87171" strokeWidth={1.5} dot={false}
+              strokeDasharray="5 2" activeDot={{ r: 4 }} connectNulls={false} />
+
+            {hasFuture && (
+              <Line type="monotone" dataKey="Будущее"
+                stroke="#4ade80" strokeWidth={2} dot={false}
+                strokeDasharray="6 3" activeDot={{ r: 5 }} connectNulls={false} />
+            )}
+          </ComposedChart>
+        </ResponsiveContainer>
+
+        {/* SVG drawing layer */}
+        <DrawingLayer
+          tool={drawTool}
+          drawings={drawings}
+          onDrawingsChange={setDrawings}
+          containerRef={containerRef}
+        />
+      </div>
+
+      {/* Legend */}
       <div className="flex gap-4 mt-2 text-xs text-slate-500">
         <span><span className="text-blue-400">━</span> Реальные цены</span>
-        <span><span className="text-red-400">╌</span> Прогноз модели (бэктест)</span>
-        {hasFuture && <span><span className="text-emerald-400">╌</span> Прогноз в будущее (bootstrap)</span>}
+        <span><span className="text-red-400">╌</span> Прогноз (бэктест)</span>
+        {hasFuture && <span><span className="text-emerald-400">╌</span> Будущее (bootstrap)</span>}
+        <span className="ml-auto text-slate-600">Инструменты рисования ↑</span>
       </div>
     </div>
   )
