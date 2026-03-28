@@ -48,17 +48,30 @@ def run_lstm(ticker: str, start: str, end: str, window: int = 60, n_future: int 
     train_prices = train_df["Close"].values.astype(float).flatten()
     test_prices  = test_df["Close"].values.astype(float).flatten()
 
+    # Auto-reduce window if training data is too short
+    window = min(window, max(5, len(train_prices) // 3))
+    if len(train_prices) <= window:
+        raise ValueError(
+            f"Недостаточно данных: {len(train_prices)} точек, окно={window}. "
+            "Увеличьте период или уменьшите окно."
+        )
+
     # --- Train model ---
     scaler = MinMaxScaler(feature_range=(0, 1))
     train_scaled = scaler.fit_transform(train_prices.reshape(-1, 1))
 
     X_train, y_train = _build_sequences(train_scaled, window)
-    X_train = X_train.reshape(X_train.shape[0], X_train.shape[1], 1)
+    X_train = X_train.reshape(X_train.shape[0], window, 1)
+
+    # Adjust batch_size for small datasets
+    batch_size = min(32, max(1, len(X_train) // 4))
+    val_split  = 0.1 if len(X_train) >= 20 else 0.0
 
     model = _build_model(window)
-    es = EarlyStopping(monitor="val_loss", patience=5, restore_best_weights=True)
-    model.fit(X_train, y_train, epochs=50, batch_size=32,
-              validation_split=0.1, callbacks=[es], verbose=0)
+    es = EarlyStopping(monitor="val_loss" if val_split > 0 else "loss",
+                       patience=5, restore_best_weights=True)
+    model.fit(X_train, y_train, epochs=50, batch_size=batch_size,
+              validation_split=val_split, callbacks=[es], verbose=0)
 
     # --- Backtest: walk-forward on test set ---
     all_prices = np.concatenate([train_prices, test_prices])

@@ -53,6 +53,14 @@ def run_hybrid(ticker: str, start: str, end: str, window: int = 60, n_future: in
     train_prices = train_df["Close"].values.astype(float).flatten()
     test_prices  = test_df["Close"].values.astype(float).flatten()
 
+    # Auto-reduce window if data is too short
+    window = min(window, max(5, len(train_prices) // 3))
+    if len(train_prices) <= window:
+        raise ValueError(
+            f"Недостаточно данных: {len(train_prices)} точек, окно={window}. "
+            "Увеличьте период или уменьшите окно."
+        )
+
     # --- Step 1: ARIMA on training data ---
     arima = auto_arima(
         train_prices, seasonal=False, information_criterion="aic",
@@ -69,12 +77,16 @@ def run_hybrid(ticker: str, start: str, end: str, window: int = 60, n_future: in
     res_scaled = res_scaler.fit_transform(train_residuals.reshape(-1, 1))
 
     X_res, y_res = _build_sequences(res_scaled, window)
-    X_res = X_res.reshape(X_res.shape[0], X_res.shape[1], 1)
+    X_res = X_res.reshape(X_res.shape[0], window, 1)
+
+    batch_size = min(32, max(1, len(X_res) // 4))
+    val_split  = 0.1 if len(X_res) >= 20 else 0.0
 
     lstm = _build_lstm(window)
-    es   = EarlyStopping(monitor="val_loss", patience=5, restore_best_weights=True)
-    lstm.fit(X_res, y_res, epochs=50, batch_size=32,
-             validation_split=0.1, callbacks=[es], verbose=0)
+    es   = EarlyStopping(monitor="val_loss" if val_split > 0 else "loss",
+                         patience=5, restore_best_weights=True)
+    lstm.fit(X_res, y_res, epochs=50, batch_size=batch_size,
+             validation_split=val_split, callbacks=[es], verbose=0)
 
     # --- Step 3: Walk-forward backtest on test set ---
     history_res = list(train_residuals)
