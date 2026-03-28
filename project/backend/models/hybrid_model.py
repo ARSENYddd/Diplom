@@ -7,7 +7,7 @@ from pmdarima import auto_arima
 from sklearn.preprocessing import MinMaxScaler
 from services.data_service import load_data, train_test_split_series
 from services.metrics import compute_all
-from services.forecast_utils import future_trading_dates, bootstrap_future
+from services.forecast_utils import future_trading_dates, bootstrap_future, bootstrap_scenarios
 
 import os
 os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
@@ -108,7 +108,8 @@ def run_hybrid(ticker: str, start: str, end: str, window: int = 60, n_future: in
     test_from  = len(train_dates)
     future_from = len(all_dates)
 
-    # --- Future forecast: ARIMA base + LSTM residual correction + bootstrap ---
+    # --- Future forecast: ARIMA base + LSTM residual correction + bootstrap scenarios ---
+    scenarios = []
     if n_future > 0:
         arima_future = arima.predict(n_periods=n_future)
 
@@ -121,18 +122,18 @@ def run_hybrid(ticker: str, start: str, end: str, window: int = 60, n_future: in
             base_prices.append(float(arima_future[i]) + lstm_corr)
             rolling_res.append(lstm_corr_sc)
 
-        base_prices = np.array(base_prices)
-        stochastic  = bootstrap_future(base_prices, residuals, seed=hash(ticker) % 2**31)
-
+        base_prices  = np.array(base_prices)
         future_dates = future_trading_dates(test_dates[-1], n_future)
         all_dates   += future_dates
         all_actual  += [None] * n_future
-        all_pred    += stochastic.tolist()
+        all_pred    += bootstrap_future(base_prices, residuals, seed=hash(ticker) % 2**31).tolist()
+        scenarios    = bootstrap_scenarios(base_prices, residuals, base_seed=hash(ticker) % 2**31)
 
     return {
         "dates": all_dates,
         "actual": all_actual,
         "predicted": all_pred,
+        "scenarios": scenarios,
         "test_from_index": test_from,
         "future_from_index": future_from if n_future > 0 else None,
         "metrics": metrics,

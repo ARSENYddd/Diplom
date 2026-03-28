@@ -2,7 +2,7 @@ import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 from services.data_service import load_data, train_test_split_series
 from services.metrics import compute_all
-from services.forecast_utils import future_trading_dates, bootstrap_future
+from services.forecast_utils import future_trading_dates, bootstrap_future, bootstrap_scenarios
 
 import os
 os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
@@ -86,7 +86,8 @@ def run_lstm(ticker: str, start: str, end: str, window: int = 60, n_future: int 
     test_from  = len(train_dates)
     future_from = len(all_dates)
 
-    # --- Future forecast: autoregressive + bootstrap noise ---
+    # --- Future forecast: autoregressive + bootstrap scenarios ---
+    scenarios = []
     if n_future > 0:
         rolling = list(all_scaled[-window:, 0])
         base_scaled = []
@@ -96,20 +97,20 @@ def run_lstm(ticker: str, start: str, end: str, window: int = 60, n_future: int 
             base_scaled.append(pred)
             rolling.append(pred)
 
-        base_prices = scaler.inverse_transform(
+        base_prices  = scaler.inverse_transform(
             np.array(base_scaled).reshape(-1, 1)
         ).flatten()
-        stochastic = bootstrap_future(base_prices, residuals, seed=hash(ticker) % 2**31)
-
         future_dates = future_trading_dates(test_dates[-1], n_future)
         all_dates   += future_dates
         all_actual  += [None] * n_future
-        all_pred    += stochastic.tolist()
+        all_pred    += bootstrap_future(base_prices, residuals, seed=hash(ticker) % 2**31).tolist()
+        scenarios    = bootstrap_scenarios(base_prices, residuals, base_seed=hash(ticker) % 2**31)
 
     return {
         "dates": all_dates,
         "actual": all_actual,
         "predicted": all_pred,
+        "scenarios": scenarios,
         "test_from_index": test_from,
         "future_from_index": future_from if n_future > 0 else None,
         "metrics": metrics,
