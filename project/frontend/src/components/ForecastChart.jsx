@@ -29,106 +29,39 @@ const SCENARIO_LABELS = {
   'Бычий':         { emoji: '🐂', desc: 'Позитивный сценарий' },
 }
 
-// ─── Scrollbar ───────────────────────────────────────────────────────────────
+// ─── Scrollbar (нативный range slider) ───────────────────────────────────────
 function Scrollbar({ vsIdx, veIdx, totalLen, onRange }) {
-  const trackRef   = useRef(null)
-  const isDragging = useRef(false)
-  const startState = useRef({ clientX: 0, vs: 0, range: 0 })
-  const [active, setActive] = useState(false)
-
-  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v))
-
-  const thumbLeft  = totalLen > 0 ? vsIdx / totalLen : 0
-  const thumbWidth = totalLen > 0 ? Math.max((veIdx - vsIdx + 1) / totalLen, 0.04) : 1
-
-  // Click on track (not thumb) → jump to position
-  const onTrackMouseDown = (e) => {
-    const rect = trackRef.current?.getBoundingClientRect()
-    if (!rect) return
-    const ratio  = (e.clientX - rect.left) / rect.width
-    const range  = veIdx - vsIdx
-    const mid    = Math.round(ratio * totalLen)
-    const ns     = clamp(mid - Math.round(range / 2), 0, totalLen - 1 - range)
-    onRange(ns, ns + range)
-  }
-
-  // Drag the thumb
-  const onThumbMouseDown = (e) => {
-    e.stopPropagation()
-    e.preventDefault()
-    isDragging.current = true
-    setActive(true)
-    startState.current = { clientX: e.clientX, vs: vsIdx, range: veIdx - vsIdx }
-
-    const onMove = (ev) => {
-      if (!isDragging.current) return
-      const rect = trackRef.current?.getBoundingClientRect()
-      if (!rect) return
-      const { clientX, vs, range } = startState.current
-      const pxPerBar = rect.width / totalLen
-      const shift    = Math.round((ev.clientX - clientX) / pxPerBar)
-      const ns       = clamp(vs + shift, 0, totalLen - 1 - range)
-      onRange(ns, ns + range)
-    }
-
-    const onUp = () => {
-      isDragging.current = false
-      setActive(false)
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
-    }
-
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
-  }
-
-  const isZoomed = thumbWidth < 0.99
+  const range    = veIdx - vsIdx
+  const maxStart = Math.max(0, totalLen - 1 - range)
+  const isZoomed = range < totalLen - 1
 
   return (
-    <div className="space-y-1">
-      {/* Label */}
-      <div className="flex justify-between text-[10px] text-slate-600 px-1">
-        <span>◀ прокрутка</span>
-        <span className="text-slate-500">
+    <div className="px-1 space-y-0.5">
+      {/* Info row */}
+      <div className="flex justify-between text-[10px] text-slate-600">
+        <span>{isZoomed ? `${vsIdx + 1} – ${veIdx + 1}` : `все ${totalLen}`}</span>
+        <span>
           {isZoomed
-            ? `${vsIdx + 1}–${veIdx + 1} из ${totalLen}`
-            : `Все ${totalLen} баров — прокрутите мышью для масштаба`}
+            ? `из ${totalLen} баров (${Math.round((range + 1) / totalLen * 100)}%)`
+            : 'приблизьте колесом мыши → тяните ползунок'}
         </span>
-        <span>▶</span>
       </div>
 
-      {/* Track */}
-      <div
-        ref={trackRef}
-        onMouseDown={onTrackMouseDown}
-        className="relative h-6 bg-slate-800 rounded border border-slate-700 cursor-pointer select-none"
-      >
-        {/* Thumb */}
-        <div
-          onMouseDown={onThumbMouseDown}
-          title="Перетащи для прокрутки"
-          className={`absolute top-0 bottom-0 rounded flex items-center justify-center group
-            ${active
-              ? 'bg-indigo-500 cursor-grabbing'
-              : 'bg-indigo-600/70 hover:bg-indigo-500 cursor-grab'
-            } border border-indigo-400/60`}
-          style={{
-            left:  `${thumbLeft  * 100}%`,
-            width: `${thumbWidth * 100}%`,
-            minWidth: 24,
-            transition: active ? 'none' : 'background-color 0.15s',
-          }}
-        >
-          {/* Grip lines — only shown when thumb is wide enough */}
-          {thumbWidth > 0.08 && (
-            <div className="flex gap-0.5 opacity-60 group-hover:opacity-100 pointer-events-none">
-              {[0,1,2].map(i => (
-                <div key={i} className="w-px h-3 bg-white/60 rounded-full" />
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+      {/* Native range input — always draggable */}
+      <input
+        type="range"
+        min={0}
+        max={Math.max(maxStart, 1)}
+        step={1}
+        value={isZoomed ? vsIdx : 0}
+        disabled={!isZoomed}
+        onChange={e => {
+          const ns = parseInt(e.target.value, 10)
+          onRange(ns, ns + range)
+        }}
+        className="w-full h-2 cursor-pointer disabled:cursor-default disabled:opacity-30"
+        style={{ accentColor: '#6366f1' }}
+      />
     </div>
   )
 }
@@ -141,7 +74,7 @@ const ChartCore = memo(function ChartCore({
   scenarios, hiddenScenarios, showScenarios,
 }) {
   return (
-    <ResponsiveContainer width="100%" height={380}>
+    <ResponsiveContainer width="100%" height={compact ? 280 : 380}>
       <ComposedChart data={visibleData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
         <XAxis
@@ -197,7 +130,7 @@ const ChartCore = memo(function ChartCore({
 })
 
 // ─── Main component ──────────────────────────────────────────────────────────
-export default function ForecastChart({ data }) {
+export default function ForecastChart({ data, compact = false }) {
   // ── All hooks must be called unconditionally (Rules of Hooks) ──────────────
   const [drawTool,        setDrawTool]        = useState('cursor')
   const [drawings,        setDrawings]        = useState([])
@@ -399,35 +332,37 @@ export default function ForecastChart({ data }) {
   const zoomPct = totalLen > 0 ? Math.round(((veIdx - vsIdx + 1) / totalLen) * 100) : 100
 
   return (
-    <div className="bg-slate-900 border border-slate-700 rounded-xl p-5 space-y-3">
+    <div className={`space-y-2 ${compact ? '' : 'bg-slate-900 border border-slate-700 rounded-xl p-5'}`}>
 
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <h2 className="text-sm font-semibold text-white flex items-center gap-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block" />
-          Рисунок 9 — Реальные vs Предсказанные значения{hasFuture && ' + сценарии'}
-        </h2>
-        <div className="flex items-center gap-2">
-          {zoomPct < 99 && (
-            <button
-              onClick={() => { setViewStart(0); setViewEnd(null) }}
-              className="text-xs px-2 py-1 rounded bg-slate-800 border border-slate-600 text-slate-400 hover:text-white hover:border-slate-500 transition-all flex items-center gap-1"
-              title="Сбросить масштаб"
-            >
-              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                <path d="M3 3v5h5M21 21v-5h-5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M3.05 9A9 9 0 1115 3.05" strokeLinecap="round"/>
-              </svg>
-              {zoomPct}%
-            </button>
-          )}
-          {hasFuture && (
-            <span className="text-xs px-2 py-1 rounded bg-emerald-900/40 border border-emerald-700 text-emerald-300">
-              Прогноз с {futureSplitDate}
-            </span>
-          )}
+      {/* Header — only in standalone mode */}
+      {!compact && (
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block" />
+            Реальные vs Предсказанные значения{hasFuture && ' + сценарии'}
+          </h2>
+          <div className="flex items-center gap-2">
+            {zoomPct < 99 && (
+              <button
+                onClick={() => { setViewStart(0); setViewEnd(null) }}
+                className="text-xs px-2 py-1 rounded bg-slate-800 border border-slate-600 text-slate-400 hover:text-white hover:border-slate-500 transition-all flex items-center gap-1"
+                title="Сбросить масштаб"
+              >
+                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                  <path d="M3 3v5h5M21 21v-5h-5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M3.05 9A9 9 0 1115 3.05" strokeLinecap="round"/>
+                </svg>
+                {zoomPct}%
+              </button>
+            )}
+            {hasFuture && (
+              <span className="text-xs px-2 py-1 rounded bg-emerald-900/40 border border-emerald-700 text-emerald-300">
+                Прогноз с {futureSplitDate}
+              </span>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Scenario toggles */}
       {hasFuture && scenarios.length > 0 && (
