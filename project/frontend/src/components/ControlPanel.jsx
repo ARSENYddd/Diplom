@@ -80,10 +80,14 @@ const TICKER_META = Object.fromEntries(
 )
 
 const MODELS = [
-  { key: 'arima',  label: 'ARIMA',      desc: 'Авторегрессионная' },
-  { key: 'garch',  label: 'GARCH',      desc: 'Волатильность' },
-  { key: 'lstm',   label: 'LSTM',       desc: 'Нейронная сеть' },
-  { key: 'hybrid', label: 'ARIMA+LSTM', desc: 'Гибридная' },
+  { key: 'arima',         label: 'ARIMA',            desc: 'Авторегрессионная' },
+  { key: 'garch',         label: 'GARCH',            desc: 'Волатильность' },
+  { key: 'lstm',          label: 'LSTM',             desc: 'Нейронная сеть' },
+  { key: 'arima_lstm',    label: 'ARIMA+LSTM',       desc: 'Гибридная' },
+  { key: 'arima_gru',     label: 'ARIMA+GRU',        desc: 'Гибрид (GRU)' },
+  { key: 'garch_lstm',    label: 'GARCH+LSTM',       desc: 'Волат. + нейросеть' },
+  { key: 'triple_hybrid', label: 'ARIMA+GARCH+LSTM', desc: 'Тройной гибрид' },
+  { key: 'ensemble',      label: 'Ансамбль',         desc: 'Взвешенный' },
 ]
 
 export default function ControlPanel({ onForecast, onCompare, loading }) {
@@ -92,7 +96,7 @@ export default function ControlPanel({ onForecast, onCompare, loading }) {
   const [useCustom,   setUseCustom]   = useState(false)
   const [start,       setStart]       = useState('2015-01-01')
   const [end,         setEnd]         = useState('2024-01-01')
-  const [model,       setModel]       = useState('hybrid')
+  const [model,       setModel]       = useState('arima_lstm')
   const [window,      setWindow]      = useState(60)
 
   const activeTicker = useCustom ? customTicker.trim().toUpperCase() : ticker
@@ -239,7 +243,7 @@ export default function ControlPanel({ onForecast, onCompare, loading }) {
       {/* Model selector */}
       <div>
         <label className={labelCls}>Модель</label>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-1.5">
           {MODELS.map(m => (
             <button
               key={m.key}

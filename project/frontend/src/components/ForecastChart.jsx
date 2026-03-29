@@ -29,15 +29,53 @@ const SCENARIO_LABELS = {
   'Бычий':         { emoji: '🐂', desc: 'Позитивный сценарий' },
 }
 
+// ─── Scrollbar (нативный range slider) ───────────────────────────────────────
+function Scrollbar({ vsIdx, veIdx, totalLen, onRange }) {
+  const range    = veIdx - vsIdx
+  const maxStart = Math.max(0, totalLen - 1 - range)
+  const isZoomed = range < totalLen - 1
+
+  return (
+    <div className="px-1 space-y-0.5">
+      {/* Info row */}
+      <div className="flex justify-between text-[10px] text-slate-600">
+        <span>{isZoomed ? `${vsIdx + 1} – ${veIdx + 1}` : `все ${totalLen}`}</span>
+        <span>
+          {isZoomed
+            ? `из ${totalLen} баров (${Math.round((range + 1) / totalLen * 100)}%)`
+            : 'приблизьте колесом мыши → тяните ползунок'}
+        </span>
+      </div>
+
+      {/* Native range input — always draggable */}
+      <input
+        type="range"
+        min={0}
+        max={Math.max(maxStart, 1)}
+        step={1}
+        value={isZoomed ? vsIdx : 0}
+        disabled={!isZoomed}
+        onChange={e => {
+          const ns = parseInt(e.target.value, 10)
+          onRange(ns, ns + range)
+        }}
+        className="w-full h-2 cursor-pointer disabled:cursor-default disabled:opacity-30"
+        style={{ accentColor: '#6366f1' }}
+      />
+    </div>
+  )
+}
+
 // ─── Memoized chart core ─────────────────────────────────────────────────────
 // Does NOT receive drawTool → switching tools never re-renders or re-animates the chart
 const ChartCore = memo(function ChartCore({
   visibleData, yDomain, xTicks,
   hasFuture, futureSplitDate,
   scenarios, hiddenScenarios, showScenarios,
+  compact,
 }) {
   return (
-    <ResponsiveContainer width="100%" height={380}>
+    <ResponsiveContainer width="100%" height={compact ? 280 : 380}>
       <ComposedChart data={visibleData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
         <XAxis
@@ -93,7 +131,7 @@ const ChartCore = memo(function ChartCore({
 })
 
 // ─── Main component ──────────────────────────────────────────────────────────
-export default function ForecastChart({ data }) {
+export default function ForecastChart({ data, compact = false }) {
   // ── All hooks must be called unconditionally (Rules of Hooks) ──────────────
   const [drawTool,        setDrawTool]        = useState('cursor')
   const [drawings,        setDrawings]        = useState([])
@@ -197,16 +235,31 @@ export default function ForecastChart({ data }) {
     return visibleData.filter((_, i) => i % every === 0).map(d => d.date)
   }, [visibleData])
 
-  // Wheel zoom (passive:false to allow preventDefault)
+  // Wheel: vertical = zoom, horizontal (trackpad swipe) = pan
   useEffect(() => {
     const el = chartAreaRef.current
     if (!el) return
     const onWheel = (e) => {
       e.preventDefault()
-      const vs    = vsRef.current
-      const ve    = veRef.current
-      const len   = totalLenRef.current
+      const vs  = vsRef.current
+      const ve  = veRef.current
+      const len = totalLenRef.current
       if (len === 0) return
+
+      // Horizontal swipe (trackpad) → pan
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+        const count    = ve - vs + 1
+        const pxPerBar = el.getBoundingClientRect().width / Math.max(1, count)
+        const shift    = Math.round(e.deltaX / pxPerBar)
+        const range    = ve - vs
+        const newStart = Math.max(0, Math.min(len - 1 - range, vs + shift))
+        const newEnd   = newStart + range
+        setViewStart(newStart)
+        setViewEnd(newEnd >= len - 1 ? null : newEnd)
+        return
+      }
+
+      // Vertical scroll → zoom around cursor
       const count  = ve - vs + 1
       const step   = Math.max(5, Math.round(count * 0.12))
       const zoomIn = e.deltaY < 0
@@ -228,7 +281,7 @@ export default function ForecastChart({ data }) {
     }
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
-  }, []) // stable — all values read from refs
+  }, [])
 
   // Pan (drag in cursor mode)
   const handleMouseDown = useCallback((e) => {
@@ -268,7 +321,7 @@ export default function ForecastChart({ data }) {
 
   // ── Early return AFTER all hooks ───────────────────────────────────────────
   if (!data) return (
-    <div className="bg-slate-900 border border-slate-700 rounded-xl p-5 flex items-center justify-center h-72">
+    <div className={`flex items-center justify-center ${compact ? 'h-48' : 'bg-slate-900 border border-slate-700 rounded-xl p-5 h-72'}`}>
       <p className="text-slate-500 text-sm">Запустите прогноз для отображения графика</p>
     </div>
   )
@@ -280,35 +333,37 @@ export default function ForecastChart({ data }) {
   const zoomPct = totalLen > 0 ? Math.round(((veIdx - vsIdx + 1) / totalLen) * 100) : 100
 
   return (
-    <div className="bg-slate-900 border border-slate-700 rounded-xl p-5 space-y-3">
+    <div className={`space-y-2 ${compact ? '' : 'bg-slate-900 border border-slate-700 rounded-xl p-5'}`}>
 
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <h2 className="text-sm font-semibold text-white flex items-center gap-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block" />
-          Рисунок 9 — Реальные vs Предсказанные значения{hasFuture && ' + сценарии'}
-        </h2>
-        <div className="flex items-center gap-2">
-          {zoomPct < 99 && (
-            <button
-              onClick={() => { setViewStart(0); setViewEnd(null) }}
-              className="text-xs px-2 py-1 rounded bg-slate-800 border border-slate-600 text-slate-400 hover:text-white hover:border-slate-500 transition-all flex items-center gap-1"
-              title="Сбросить масштаб"
-            >
-              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                <path d="M3 3v5h5M21 21v-5h-5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M3.05 9A9 9 0 1115 3.05" strokeLinecap="round"/>
-              </svg>
-              {zoomPct}%
-            </button>
-          )}
-          {hasFuture && (
-            <span className="text-xs px-2 py-1 rounded bg-emerald-900/40 border border-emerald-700 text-emerald-300">
-              Прогноз с {futureSplitDate}
-            </span>
-          )}
+      {/* Header — only in standalone mode */}
+      {!compact && (
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <h2 className="text-sm font-semibold text-white flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block" />
+            Реальные vs Предсказанные значения{hasFuture && ' + сценарии'}
+          </h2>
+          <div className="flex items-center gap-2">
+            {zoomPct < 99 && (
+              <button
+                onClick={() => { setViewStart(0); setViewEnd(null) }}
+                className="text-xs px-2 py-1 rounded bg-slate-800 border border-slate-600 text-slate-400 hover:text-white hover:border-slate-500 transition-all flex items-center gap-1"
+                title="Сбросить масштаб"
+              >
+                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                  <path d="M3 3v5h5M21 21v-5h-5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M3.05 9A9 9 0 1115 3.05" strokeLinecap="round"/>
+                </svg>
+                {zoomPct}%
+              </button>
+            )}
+            {hasFuture && (
+              <span className="text-xs px-2 py-1 rounded bg-emerald-900/40 border border-emerald-700 text-emerald-300">
+                Прогноз с {futureSplitDate}
+              </span>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Scenario toggles */}
       {hasFuture && scenarios.length > 0 && (
@@ -356,7 +411,7 @@ export default function ForecastChart({ data }) {
         <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
           <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35" strokeLinecap="round"/>
         </svg>
-        Колесо мыши — масштаб · Перетащи — прокрутка
+        Колесо / щипок — масштаб · Свайп двумя пальцами или перетащи — прокрутка
       </p>
 
       {/* Chart area */}
@@ -379,6 +434,7 @@ export default function ForecastChart({ data }) {
             scenarios={scenarios}
             hiddenScenarios={hiddenScenarios}
             showScenarios={showScenarios}
+            compact={compact}
           />
           <DrawingLayer
             tool={drawTool} drawings={drawings}
@@ -386,6 +442,14 @@ export default function ForecastChart({ data }) {
           />
         </div>
       </div>
+
+      {/* Scrollbar */}
+      {totalLen > 0 && (
+        <Scrollbar
+          vsIdx={vsIdx} veIdx={veIdx} totalLen={totalLen}
+          onRange={(s, e) => { setViewStart(s); setViewEnd(e >= totalLen - 1 ? null : e) }}
+        />
+      )}
 
       {/* Legend */}
       <div className="flex gap-4 flex-wrap text-xs text-slate-500">

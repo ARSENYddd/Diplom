@@ -1,90 +1,100 @@
 import { useState } from 'react'
 import Header from './components/Header'
-import ControlPanel from './components/ControlPanel'
-import ForecastChart from './components/ForecastChart'
-import ResidualChart from './components/ResidualChart'
-import MetricsPanel from './components/MetricsPanel'
-import ModelComparison from './components/ModelComparison'
-import { fetchForecast, fetchComparison } from './api/client'
+import ChartPanel from './components/ChartPanel'
+
+let nextId = 2
 
 export default function App() {
-  const [loading, setLoading] = useState(false)
-  const [forecastData, setForecastData] = useState(null)
-  const [comparisonData, setComparisonData] = useState(null)
-  const [error, setError] = useState(null)
-  const [modelInfo, setModelInfo] = useState(null)
+  const [panels, setPanels] = useState([
+    { id: 1, defaults: { ticker: '^GSPC', model: 'arima_lstm', start: '2018-01-01', end: '2024-01-01' } },
+  ])
+  const [layout, setLayout] = useState('single') // 'single' | 'double' | 'triple'
 
-  const handleForecast = async (params) => {
-    setLoading(true)
-    setError(null)
-    try {
-      const result = await fetchForecast(params)
-      setForecastData(result)
-      setModelInfo(result.model_info)
-    } catch (e) {
-      setError(e.response?.data?.detail || e.message || 'Ошибка при выполнении прогноза')
-    } finally {
-      setLoading(false)
-    }
+  const addPanel = (defaults = {}) => {
+    setPanels(prev => [...prev, { id: nextId++, defaults }])
+    if (panels.length >= 1) setLayout('double')
+    if (panels.length >= 2) setLayout('triple')
   }
 
-  const handleCompare = async (ticker, start, end) => {
-    setLoading(true)
-    setError(null)
-    try {
-      const result = await fetchComparison(ticker, start, end)
-      setComparisonData(result)
-    } catch (e) {
-      setError(e.response?.data?.detail || e.message || 'Ошибка при сравнении')
-    } finally {
-      setLoading(false)
-    }
+  const removePanel = (id) => {
+    setPanels(prev => {
+      const next = prev.filter(p => p.id !== id)
+      if (next.length <= 1) setLayout('single')
+      else if (next.length <= 2) setLayout('double')
+      return next
+    })
   }
+
+  const gridClass =
+    layout === 'triple' ? 'grid grid-cols-2 gap-4' :
+    layout === 'double' ? 'grid grid-cols-2 gap-4' :
+    'flex flex-col'
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
       <Header />
 
-      <main className="flex-1 p-5 grid grid-cols-[300px_1fr] gap-5">
-        {/* Left sidebar */}
-        <div className="space-y-4">
-          <ControlPanel onForecast={handleForecast} onCompare={handleCompare} loading={loading} />
+      {/* Toolbar */}
+      <div className="px-4 py-2 border-b border-slate-800 flex items-center gap-3">
+        <span className="text-xs text-slate-500">Панели:</span>
+        <span className="text-xs font-medium text-white">{panels.length}</span>
+        <div className="flex-1" />
 
-          {modelInfo && (
-            <div className="bg-slate-900 border border-slate-700 rounded-xl p-4 text-xs space-y-1.5">
-              <p className="font-semibold text-white text-sm">Информация о модели</p>
-              {Object.entries(modelInfo).map(([k, v]) => (
-                <div key={k} className="flex justify-between gap-2">
-                  <span className="text-slate-500 capitalize">{k.replace(/_/g, ' ')}</span>
-                  <span className="text-slate-300 text-right font-mono">
-                    {Array.isArray(v) ? v.join(', ') : String(v)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Main content */}
-        <div className="space-y-5 min-w-0">
-          {error && (
-            <div className="bg-red-900/30 border border-red-700 rounded-xl px-4 py-3 text-sm text-red-300 flex items-start gap-2">
-              <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-              </svg>
-              <span>{error}</span>
-            </div>
-          )}
-
-          <MetricsPanel metrics={forecastData?.metrics ?? null} />
-
-          <ForecastChart data={forecastData} />
-
-          <div className="grid grid-cols-2 gap-5">
-            <ResidualChart data={forecastData} />
-            <ModelComparison data={comparisonData} />
+        {/* Layout toggle */}
+        {panels.length > 1 && (
+          <div className="flex items-center gap-1 bg-slate-800 rounded-lg p-1 border border-slate-700">
+            {[
+              { key: 'double', icon: (
+                <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor">
+                  <rect x="1" y="1" width="6" height="14" rx="1"/><rect x="9" y="1" width="6" height="14" rx="1"/>
+                </svg>
+              ), title: '2 колонки' },
+              { key: 'single', icon: (
+                <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor">
+                  <rect x="1" y="1" width="14" height="14" rx="1"/>
+                </svg>
+              ), title: 'Одна колонка' },
+            ].map(({ key, icon, title }) => (
+              <button key={key} title={title} onClick={() => setLayout(key)}
+                className={`p-1.5 rounded transition-all ${layout === key ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}>
+                {icon}
+              </button>
+            ))}
           </div>
+        )}
+
+        {/* Add panel presets */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-500">Добавить график:</span>
+          {[
+            { label: 'S&P 500',    defaults: { ticker: '^GSPC',   model: 'arima_lstm', start: '2018-01-01', end: '2024-01-01' } },
+            { label: 'SBER.ME',    defaults: { ticker: 'SBER.ME', model: 'arima_lstm', start: '2018-01-01', end: '2024-01-01' } },
+            { label: 'LKOH.ME',   defaults: { ticker: 'LKOH.ME', model: 'triple_hybrid', start: '2018-01-01', end: '2024-01-01' } },
+            { label: 'Brent',      defaults: { ticker: 'BZ=F',   model: 'garch',      start: '2018-01-01', end: '2024-01-01' } },
+            { label: 'Пустой',     defaults: {} },
+          ].map(({ label, defaults }) => (
+            <button
+              key={label}
+              onClick={() => addPanel(defaults)}
+              className="text-xs px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:border-indigo-500 hover:text-white transition-all"
+            >
+              + {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Panels */}
+      <main className="flex-1 p-4">
+        <div className={`${gridClass} gap-4`}>
+          {panels.map(p => (
+            <ChartPanel
+              key={p.id}
+              panelId={p.id}
+              defaultParams={p.defaults}
+              onRemove={panels.length > 1 ? () => removePanel(p.id) : null}
+            />
+          ))}
         </div>
       </main>
     </div>

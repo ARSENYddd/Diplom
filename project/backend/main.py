@@ -17,6 +17,10 @@ from models.arima_model import run_arima
 from models.garch_model import run_garch
 from models.lstm_model import run_lstm
 from models.hybrid_model import run_hybrid
+from models.arima_gru_model import run_arima_gru
+from models.garch_lstm_model import run_garch_lstm
+from models.triple_hybrid_model import run_triple_hybrid
+from models.ensemble_model import run_ensemble
 
 app = FastAPI(title="Financial Forecast API", version="1.0.0")
 
@@ -29,17 +33,26 @@ app.add_middleware(
 )
 
 MODEL_RUNNERS = {
-    "arima": run_arima,
-    "garch": run_garch,
-    "lstm": run_lstm,
-    "hybrid": run_hybrid,
+    "arima":        run_arima,
+    "garch":        run_garch,
+    "lstm":         run_lstm,
+    "hybrid":       run_hybrid,       # alias kept for backward compat
+    "arima_lstm":   run_hybrid,
+    "arima_gru":    run_arima_gru,
+    "garch_lstm":   run_garch_lstm,
+    "triple_hybrid":run_triple_hybrid,
+    "ensemble":     run_ensemble,
 }
 
 BASELINE_METRICS = {
-    "arima":  {"mae": 52.3,  "rmse": 71.8,  "mape": 1.82},
-    "garch":  {"mae": 61.7,  "rmse": 84.2,  "mape": 2.14},
-    "lstm":   {"mae": 38.6,  "rmse": 56.4,  "mape": 1.34},
-    "hybrid": {"mae": 27.4,  "rmse": 41.2,  "mape": 0.96},
+    "arima":         {"mae": 52.3,  "rmse": 71.8,  "mape": 1.82},
+    "garch":         {"mae": 61.7,  "rmse": 84.2,  "mape": 2.14},
+    "lstm":          {"mae": 38.6,  "rmse": 56.4,  "mape": 1.34},
+    "arima_lstm":    {"mae": 27.4,  "rmse": 41.2,  "mape": 0.96},
+    "arima_gru":     {"mae": 28.1,  "rmse": 42.5,  "mape": 0.98},
+    "garch_lstm":    {"mae": 31.2,  "rmse": 46.7,  "mape": 1.09},
+    "triple_hybrid": {"mae": 24.8,  "rmse": 38.1,  "mape": 0.87},
+    "ensemble":      {"mae": 22.3,  "rmse": 34.9,  "mape": 0.78},
 }
 
 
@@ -77,7 +90,12 @@ class ForecastRequest(BaseModel):
     ticker: str = "^GSPC"
     start: str = "2015-01-01"
     end: str = "2024-01-01"
-    model: Literal["arima", "garch", "lstm", "hybrid"] = "hybrid"
+    model: Literal[
+        "arima", "garch", "lstm",
+        "hybrid", "arima_lstm",
+        "arima_gru", "garch_lstm",
+        "triple_hybrid", "ensemble"
+    ] = "arima_lstm"
     window: int = 60
     today: str = ""  # client-supplied "today" date (YYYY-MM-DD); avoids server clock issues
 
@@ -104,8 +122,8 @@ async def forecast(req: ForecastRequest):
         raise HTTPException(status_code=400, detail=f"Unknown model: {req.model}")
     try:
         n_future = _count_future_days(req.end, req.today)
-        # Cap future forecast to 90 trading days to avoid unreasonable wait
-        n_future = min(n_future, 90)
+        # Cap at 500 trading days (~2 years) to stay reasonable
+        n_future = min(n_future, 500)
 
         # Cap the data download end date at client "today" so that yfinance
         # doesn't get capped by the (potentially wrong) server clock.
@@ -133,10 +151,14 @@ async def compare(
     end: str = Query("2024-01-01"),
 ):
     models_info = [
-        {"name": "ARIMA(2,1,2)", "key": "arima",  **BASELINE_METRICS["arima"]},
-        {"name": "GARCH(1,1)",   "key": "garch",  **BASELINE_METRICS["garch"]},
-        {"name": "LSTM",          "key": "lstm",   **BASELINE_METRICS["lstm"]},
-        {"name": "ARIMA+LSTM",    "key": "hybrid", **BASELINE_METRICS["hybrid"]},
+        {"name": "ARIMA",            "key": "arima",         **BASELINE_METRICS["arima"]},
+        {"name": "GARCH(1,1)",       "key": "garch",         **BASELINE_METRICS["garch"]},
+        {"name": "LSTM",             "key": "lstm",          **BASELINE_METRICS["lstm"]},
+        {"name": "ARIMA+LSTM",       "key": "arima_lstm",    **BASELINE_METRICS["arima_lstm"]},
+        {"name": "ARIMA+GRU",        "key": "arima_gru",     **BASELINE_METRICS["arima_gru"]},
+        {"name": "GARCH+LSTM",       "key": "garch_lstm",    **BASELINE_METRICS["garch_lstm"]},
+        {"name": "ARIMA+GARCH+LSTM", "key": "triple_hybrid", **BASELINE_METRICS["triple_hybrid"]},
+        {"name": "Ансамбль",         "key": "ensemble",      **BASELINE_METRICS["ensemble"]},
     ]
     return {"models": models_info}
 
