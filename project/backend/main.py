@@ -122,8 +122,8 @@ async def forecast(req: ForecastRequest):
         raise HTTPException(status_code=400, detail=f"Unknown model: {req.model}")
     try:
         n_future = _count_future_days(req.end, req.today)
-        # Cap future forecast to 90 trading days to avoid unreasonable wait
-        n_future = min(n_future, 90)
+        # Cap at 500 trading days (~2 years) to stay reasonable
+        n_future = min(n_future, 500)
 
         # Cap the data download end date at client "today" so that yfinance
         # doesn't get capped by the (potentially wrong) server clock.

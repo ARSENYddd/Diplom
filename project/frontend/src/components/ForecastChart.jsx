@@ -29,68 +29,106 @@ const SCENARIO_LABELS = {
   'Бычий':         { emoji: '🐂', desc: 'Позитивный сценарий' },
 }
 
-// ─── Mini scrollbar ──────────────────────────────────────────────────────────
+// ─── Scrollbar ───────────────────────────────────────────────────────────────
 function Scrollbar({ vsIdx, veIdx, totalLen, onRange }) {
-  const trackRef  = useRef(null)
-  const dragging  = useRef(false)
-  const dragStart = useRef({ x: 0, vs: 0, ve: 0 })
-
-  const thumbLeft  = vsIdx / totalLen
-  const thumbWidth = (veIdx - vsIdx + 1) / totalLen
+  const trackRef   = useRef(null)
+  const isDragging = useRef(false)
+  const startState = useRef({ clientX: 0, vs: 0, range: 0 })
+  const [active, setActive] = useState(false)
 
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v))
 
-  const posToIdx = (clientX) => {
-    const rect = trackRef.current?.getBoundingClientRect()
-    if (!rect) return 0
-    return clamp(Math.round((clientX - rect.left) / rect.width * totalLen), 0, totalLen - 1)
-  }
+  const thumbLeft  = totalLen > 0 ? vsIdx / totalLen : 0
+  const thumbWidth = totalLen > 0 ? Math.max((veIdx - vsIdx + 1) / totalLen, 0.04) : 1
 
-  const onTrackClick = (e) => {
-    if (dragging.current) return
-    const rect  = trackRef.current?.getBoundingClientRect()
+  // Click on track (not thumb) → jump to position
+  const onTrackMouseDown = (e) => {
+    const rect = trackRef.current?.getBoundingClientRect()
     if (!rect) return
-    const ratio = (e.clientX - rect.left) / rect.width
-    const range = veIdx - vsIdx
-    const mid   = Math.round(ratio * totalLen)
-    const ns    = clamp(mid - Math.round(range / 2), 0, totalLen - 1 - range)
+    const ratio  = (e.clientX - rect.left) / rect.width
+    const range  = veIdx - vsIdx
+    const mid    = Math.round(ratio * totalLen)
+    const ns     = clamp(mid - Math.round(range / 2), 0, totalLen - 1 - range)
     onRange(ns, ns + range)
   }
 
-  const onThumbDown = (e) => {
+  // Drag the thumb
+  const onThumbMouseDown = (e) => {
     e.stopPropagation()
-    dragging.current  = true
-    dragStart.current = { x: e.clientX, vs: vsIdx, ve: veIdx }
+    e.preventDefault()
+    isDragging.current = true
+    setActive(true)
+    startState.current = { clientX: e.clientX, vs: vsIdx, range: veIdx - vsIdx }
+
     const onMove = (ev) => {
-      if (!dragging.current) return
-      const rect  = trackRef.current?.getBoundingClientRect()
+      if (!isDragging.current) return
+      const rect = trackRef.current?.getBoundingClientRect()
       if (!rect) return
+      const { clientX, vs, range } = startState.current
       const pxPerBar = rect.width / totalLen
-      const shift    = Math.round((ev.clientX - dragStart.current.x) / pxPerBar)
-      const range    = dragStart.current.ve - dragStart.current.vs
-      const ns       = clamp(dragStart.current.vs + shift, 0, totalLen - 1 - range)
+      const shift    = Math.round((ev.clientX - clientX) / pxPerBar)
+      const ns       = clamp(vs + shift, 0, totalLen - 1 - range)
       onRange(ns, ns + range)
     }
-    const onUp = () => { dragging.current = false; window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
+
+    const onUp = () => {
+      isDragging.current = false
+      setActive(false)
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
   }
 
+  const isZoomed = thumbWidth < 0.99
+
   return (
-    <div
-      ref={trackRef}
-      onClick={onTrackClick}
-      className="relative h-5 bg-slate-800 rounded-full border border-slate-700 cursor-pointer mx-1"
-    >
-      {/* Track fill */}
-      <div className="absolute inset-y-0 rounded-full bg-slate-700/50"
-        style={{ left: '0%', width: '100%' }} />
-      {/* Thumb */}
+    <div className="space-y-1">
+      {/* Label */}
+      <div className="flex justify-between text-[10px] text-slate-600 px-1">
+        <span>◀ прокрутка</span>
+        <span className="text-slate-500">
+          {isZoomed
+            ? `${vsIdx + 1}–${veIdx + 1} из ${totalLen}`
+            : `Все ${totalLen} баров — прокрутите мышью для масштаба`}
+        </span>
+        <span>▶</span>
+      </div>
+
+      {/* Track */}
       <div
-        onMouseDown={onThumbDown}
-        className="absolute inset-y-0.5 rounded-full bg-indigo-500/70 hover:bg-indigo-400/80 border border-indigo-400/50 cursor-grab active:cursor-grabbing transition-colors"
-        style={{ left: `${thumbLeft * 100}%`, width: `${Math.max(thumbWidth * 100, 4)}%` }}
-      />
+        ref={trackRef}
+        onMouseDown={onTrackMouseDown}
+        className="relative h-6 bg-slate-800 rounded border border-slate-700 cursor-pointer select-none"
+      >
+        {/* Thumb */}
+        <div
+          onMouseDown={onThumbMouseDown}
+          title="Перетащи для прокрутки"
+          className={`absolute top-0 bottom-0 rounded flex items-center justify-center group
+            ${active
+              ? 'bg-indigo-500 cursor-grabbing'
+              : 'bg-indigo-600/70 hover:bg-indigo-500 cursor-grab'
+            } border border-indigo-400/60`}
+          style={{
+            left:  `${thumbLeft  * 100}%`,
+            width: `${thumbWidth * 100}%`,
+            minWidth: 24,
+            transition: active ? 'none' : 'background-color 0.15s',
+          }}
+        >
+          {/* Grip lines — only shown when thumb is wide enough */}
+          {thumbWidth > 0.08 && (
+            <div className="flex gap-0.5 opacity-60 group-hover:opacity-100 pointer-events-none">
+              {[0,1,2].map(i => (
+                <div key={i} className="w-px h-3 bg-white/60 rounded-full" />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
