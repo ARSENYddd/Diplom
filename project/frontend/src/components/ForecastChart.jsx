@@ -72,6 +72,7 @@ const ChartCore = memo(function ChartCore({
   visibleData, yDomain, xTicks,
   hasFuture, futureSplitDate,
   scenarios, hiddenScenarios, showScenarios,
+  compact,
 }) {
   return (
     <ResponsiveContainer width="100%" height={compact ? 280 : 380}>
@@ -320,7 +321,7 @@ export default function ForecastChart({ data, compact = false }) {
 
   // ── Early return AFTER all hooks ───────────────────────────────────────────
   if (!data) return (
-    <div className="bg-slate-900 border border-slate-700 rounded-xl p-5 flex items-center justify-center h-72">
+    <div className={`flex items-center justify-center ${compact ? 'h-48' : 'bg-slate-900 border border-slate-700 rounded-xl p-5 h-72'}`}>
       <p className="text-slate-500 text-sm">Запустите прогноз для отображения графика</p>
     </div>
   )
@@ -433,6 +434,7 @@ export default function ForecastChart({ data, compact = false }) {
             scenarios={scenarios}
             hiddenScenarios={hiddenScenarios}
             showScenarios={showScenarios}
+            compact={compact}
           />
           <DrawingLayer
             tool={drawTool} drawings={drawings}
