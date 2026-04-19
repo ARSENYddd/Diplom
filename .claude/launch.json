@@ -10,8 +10,8 @@
     },
     {
       "name": "Frontend (Vite + React)",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeExecutable": "/usr/local/bin/node",
+      "runtimeArgs": ["node_modules/.bin/vite"],
       "cwd": "project/frontend",
       "port": 5173
     }
