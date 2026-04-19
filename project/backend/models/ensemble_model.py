@@ -14,63 +14,17 @@
 import numpy as np
 from pmdarima import auto_arima
 from sklearn.preprocessing import MinMaxScaler
-from arch import arch_model
 from services.data_service import load_data, train_test_split_series
 from services.metrics import compute_all
 from services.forecast_utils import future_trading_dates, bootstrap_future, bootstrap_scenarios
-
-import os
-os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
-try:
-    import tensorflow as tf
-    tf.get_logger().setLevel("ERROR")
-    from tensorflow.keras.models import Sequential
-    from tensorflow.keras.layers import LSTM, Dense, Dropout, Input
-    from tensorflow.keras.callbacks import EarlyStopping
-    HAS_TF = True
-except ImportError:
-    HAS_TF = False
+from models._common import (
+    HAS_TF, _build_sequences_1d, _build_sequences_2d,
+    build_lstm_1d, build_lstm_2d, fit_garch_cond_var,
+    make_early_stopping, get_seed,
+)
 
 
 # ── Вспомогательные функции ────────────────────────────────────────────────────
-
-def _build_sequences_1d(data: np.ndarray, window: int):
-    X, y = [], []
-    for i in range(window, len(data)):
-        X.append(data[i - window: i, 0])
-        y.append(data[i, 0])
-    return np.array(X), np.array(y)
-
-
-def _build_sequences_2d(data: np.ndarray, window: int):
-    X, y = [], []
-    for i in range(window, len(data)):
-        X.append(data[i - window: i, :])
-        y.append(data[i, 0])
-    return np.array(X), np.array(y)
-
-
-def _make_lstm_1d(window: int):
-    m = Sequential([
-        Input(shape=(window, 1)),
-        LSTM(64, return_sequences=True), Dropout(0.2),
-        LSTM(64, return_sequences=False), Dropout(0.2),
-        Dense(1),
-    ])
-    m.compile(optimizer="adam", loss="mean_squared_error")
-    return m
-
-
-def _make_lstm_2d(window: int):
-    m = Sequential([
-        Input(shape=(window, 2)),
-        LSTM(64, return_sequences=True), Dropout(0.2),
-        LSTM(64, return_sequences=False), Dropout(0.2),
-        Dense(1),
-    ])
-    m.compile(optimizer="adam", loss="mean_squared_error")
-    return m
-
 
 def _fit_and_predict_arima(train: np.ndarray, val: np.ndarray):
     """Обучить ARIMA на train, walk-forward предсказать val."""
@@ -92,9 +46,8 @@ def _fit_and_predict_lstm(train: np.ndarray, val: np.ndarray, window: int):
     X       = X.reshape(X.shape[0], window, 1)
     bs      = min(32, max(1, len(X) // 4))
     vs      = 0.1 if len(X) >= 20 else 0.0
-    lstm    = _make_lstm_1d(window)
-    es      = EarlyStopping(monitor="val_loss" if vs > 0 else "loss",
-                            patience=5, restore_best_weights=True)
+    lstm    = build_lstm_1d(window)
+    es      = make_early_stopping(vs)
     lstm.fit(X, y, epochs=50, batch_size=bs, validation_split=vs,
              callbacks=[es], verbose=0)
     # Скользящее окно по val (не walk-forward для скорости)
@@ -124,9 +77,8 @@ def _fit_and_predict_hybrid(train: np.ndarray, val: np.ndarray, window: int):
     X    = X.reshape(X.shape[0], window, 1)
     bs   = min(32, max(1, len(X) // 4))
     vs   = 0.1 if len(X) >= 20 else 0.0
-    lstm = _make_lstm_1d(window)
-    es   = EarlyStopping(monitor="val_loss" if vs > 0 else "loss",
-                         patience=5, restore_best_weights=True)
+    lstm = build_lstm_1d(window)
+    es   = make_early_stopping(vs)
     lstm.fit(X, y, epochs=50, batch_size=bs, validation_split=vs,
              callbacks=[es], verbose=0)
 
@@ -144,12 +96,6 @@ def _fit_and_predict_hybrid(train: np.ndarray, val: np.ndarray, window: int):
     return np.array(preds), arima, lstm, res_sc
 
 
-def _fit_garch_var(series: np.ndarray) -> np.ndarray:
-    gm  = arch_model(series * 100, vol="Garch", p=1, q=1, dist="normal")
-    res = gm.fit(disp="off", show_warning=False)
-    return res.conditional_volatility ** 2
-
-
 def _fit_and_predict_triple(train: np.ndarray, val: np.ndarray, window: int):
     """ARIMA+GARCH+LSTM тройной гибрид: train→ обучить, val → walk-forward."""
     arima = auto_arima(train, seasonal=False, information_criterion="aic",
@@ -158,7 +104,7 @@ def _fit_and_predict_triple(train: np.ndarray, val: np.ndarray, window: int):
     ins  = arima.predict_in_sample()
     n    = len(ins)
     res  = train[-n:] - ins
-    var  = _fit_garch_var(res)
+    var  = fit_garch_cond_var(res)
 
     res_sc = MinMaxScaler(feature_range=(-1, 1))
     var_sc = MinMaxScaler(feature_range=(0, 1))
@@ -169,9 +115,8 @@ def _fit_and_predict_triple(train: np.ndarray, val: np.ndarray, window: int):
     X, y = _build_sequences_2d(train_2d, window)
     bs   = min(32, max(1, len(X) // 4))
     vs   = 0.1 if len(X) >= 20 else 0.0
-    lstm = _make_lstm_2d(window)
-    es   = EarlyStopping(monitor="val_loss" if vs > 0 else "loss",
-                         patience=5, restore_best_weights=True)
+    lstm = build_lstm_2d(window)
+    es   = make_early_stopping(vs)
     lstm.fit(X, y, epochs=50, batch_size=bs, validation_split=vs,
              callbacks=[es], verbose=0)
 
@@ -181,7 +126,7 @@ def _fit_and_predict_triple(train: np.ndarray, val: np.ndarray, window: int):
         fc  = float(arima.predict(1)[0])
         ha  = np.array(hist_res)
         try:
-            sv = float(_fit_garch_var(ha)[-1])
+            sv = float(fit_garch_cond_var(ha)[-1])
         except Exception:
             sv = float(np.var(ha[-window:]))
         wr  = np.array(hist_res[-window:]).reshape(-1, 1)
@@ -223,12 +168,14 @@ def run_ensemble(ticker: str, start: str, end: str, window: int = 60, n_future: 
     val_preds = {}
     states    = {}  # сохраняем обученные объекты для walk-forward на test
 
-    val_preds["arima"], states["arima_model"] = _fit_and_predict_arima(train_core, val_prices)
+    val_preds["arima"], states["arima_model"] = \
+        _fit_and_predict_arima(train_core, val_prices)
 
     val_preds["lstm"], states["lstm_model"], states["lstm_scaler"] = \
         _fit_and_predict_lstm(train_core, val_prices, window)
 
-    val_preds["hybrid"], states["hybrid_arima"], states["hybrid_lstm"], states["hybrid_res_sc"] = \
+    val_preds["hybrid"], states["hybrid_arima"], states["hybrid_lstm"], \
+        states["hybrid_res_sc"] = \
         _fit_and_predict_hybrid(train_core, val_prices, window)
 
     val_preds["triple"], states["triple_arima"], states["triple_lstm"], \
@@ -243,8 +190,6 @@ def run_ensemble(ticker: str, start: str, end: str, window: int = 60, n_future: 
     weights   = {name: v / total_inv for name, v in inv_rmse.items()}
 
     # ── Walk-forward backtest на тестовой выборке ──────────────────────────────
-    # Используем модели, уже подтянутые через val (они продолжают историю)
-    # ARIMA и hybrid arima уже обновлены через val; теперь прогоняем test
     test_pred_each = {name: [] for name in weights}
 
     # ARIMA — продолжаем модель из val
@@ -265,19 +210,22 @@ def run_ensemble(ticker: str, start: str, end: str, window: int = 60, n_future: 
         test_pred_each["lstm"].append(p)
 
     # Hybrid — продолжаем от val
-    hybrid_arima = states["hybrid_arima"]
-    hybrid_lstm  = states["hybrid_lstm"]
+    hybrid_arima  = states["hybrid_arima"]
+    hybrid_lstm   = states["hybrid_lstm"]
     hybrid_res_sc = states["hybrid_res_sc"]
-    # history_res из val (нужно восстановить остатки за val)
+    # history_res из val (восстанавливаем остатки через val_preds["arima"],
+    # как в оригинале; Phase 1.5 исправит это на корректные hybrid-остатки)
     hybrid_history_res = []
     for i, actual in enumerate(val_prices):
-        fc  = float(val_preds["arima"][i])  # использовали те же ARIMA предсказания
+        fc  = float(val_preds["arima"][i])
         hybrid_history_res.append(float(actual) - fc)
     for actual in test_prices:
         fc  = float(hybrid_arima.predict(1)[0])
         w   = np.array(hybrid_history_res[-window:]).reshape(-1, 1)
         w_sc = hybrid_res_sc.transform(w).reshape(1, window, 1)
-        corr = float(hybrid_res_sc.inverse_transform([[hybrid_lstm.predict(w_sc, verbose=0)[0, 0]]])[0, 0])
+        corr = float(hybrid_res_sc.inverse_transform(
+            [[hybrid_lstm.predict(w_sc, verbose=0)[0, 0]]]
+        )[0, 0])
         pred = fc + corr
         test_pred_each["hybrid"].append(pred)
         hybrid_history_res.append(float(actual) - fc)
@@ -288,6 +236,8 @@ def run_ensemble(ticker: str, start: str, end: str, window: int = 60, n_future: 
     triple_lstm   = states["triple_lstm"]
     triple_res_sc = states["triple_res_sc"]
     triple_var_sc = states["triple_var_sc"]
+    # history_res из val (восстанавливаем остатки через val_preds["arima"],
+    # как в оригинале; Phase 1.5 исправит это на корректные triple-остатки)
     triple_history_res = []
     for i, actual in enumerate(val_prices):
         fc = float(val_preds["arima"][i])
@@ -296,7 +246,7 @@ def run_ensemble(ticker: str, start: str, end: str, window: int = 60, n_future: 
         fc   = float(triple_arima.predict(1)[0])
         ha   = np.array(triple_history_res)
         try:
-            sv = float(_fit_garch_var(ha)[-1])
+            sv = float(fit_garch_cond_var(ha)[-1])
         except Exception:
             sv = float(np.var(ha[-window:]))
         wr   = np.array(triple_history_res[-window:]).reshape(-1, 1)
@@ -329,6 +279,7 @@ def run_ensemble(ticker: str, start: str, end: str, window: int = 60, n_future: 
     future_from = len(all_dates)
 
     # ── Future forecast — взвешенное усреднение базовых прогнозов ─────────────
+    seed = get_seed(ticker)
     scenarios = []
     if n_future > 0:
         future_preds_each = {}
@@ -349,24 +300,26 @@ def run_ensemble(ticker: str, start: str, end: str, window: int = 60, n_future: 
 
         # Hybrid
         arima_fut  = hybrid_arima.predict(n_periods=n_future)
-        h_res_hist = list(np.array(hybrid_history_res[-window:]))
+        h_res_hist = list(hybrid_history_res[-window:])
         hybrid_base = []
         for i in range(n_future):
             w   = np.array(h_res_hist[-window:]).reshape(-1, 1)
             w_sc = hybrid_res_sc.transform(w).reshape(1, window, 1)
-            corr = float(hybrid_res_sc.inverse_transform([[hybrid_lstm.predict(w_sc, verbose=0)[0, 0]]])[0, 0])
+            corr = float(hybrid_res_sc.inverse_transform(
+                [[hybrid_lstm.predict(w_sc, verbose=0)[0, 0]]]
+            )[0, 0])
             hybrid_base.append(float(arima_fut[i]) + corr)
             h_res_hist.append(corr)
         future_preds_each["hybrid"] = np.array(hybrid_base)
 
         # Triple
         triple_fut  = triple_arima.predict(n_periods=n_future)
-        t_res_hist  = list(np.array(triple_history_res[-window:]))
+        t_res_hist  = list(triple_history_res[-window:])
         triple_base = []
         for i in range(n_future):
             ha  = np.array(t_res_hist)
             try:
-                sv = float(_fit_garch_var(ha)[-1])
+                sv = float(fit_garch_cond_var(ha)[-1])
             except Exception:
                 sv = float(np.var(ha[-window:]))
             wr  = np.array(t_res_hist[-window:]).reshape(-1, 1)
@@ -384,8 +337,8 @@ def run_ensemble(ticker: str, start: str, end: str, window: int = 60, n_future: 
         future_dates = future_trading_dates(test_dates[-1], n_future)
         all_dates   += future_dates
         all_actual  += [None] * n_future
-        all_pred    += bootstrap_future(base_prices, residuals, seed=hash(ticker) % 2**31).tolist()
-        scenarios    = bootstrap_scenarios(base_prices, residuals, base_seed=hash(ticker) % 2**31)
+        all_pred    += bootstrap_future(base_prices, residuals, seed=seed).tolist()
+        scenarios    = bootstrap_scenarios(base_prices, residuals, base_seed=seed)
 
     return {
         "dates": all_dates,

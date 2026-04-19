@@ -3,6 +3,7 @@ from pmdarima import auto_arima
 from services.data_service import load_data, train_test_split_series
 from services.metrics import compute_all
 from services.forecast_utils import future_trading_dates, bootstrap_future, bootstrap_scenarios
+from models._common import get_seed
 
 
 def run_arima(ticker: str, start: str, end: str, window: int = 60, n_future: int = 0) -> dict:
@@ -39,14 +40,15 @@ def run_arima(ticker: str, start: str, end: str, window: int = 60, n_future: int
     future_from = len(all_dates)
 
     # --- Future forecast ---
+    seed = get_seed(ticker)
     scenarios = []
     if n_future > 0:
         base         = model.predict(n_periods=n_future)
         future_dates = future_trading_dates(test_dates[-1], n_future)
         all_dates   += future_dates
         all_actual  += [None] * n_future
-        all_pred    += bootstrap_future(base, residuals, seed=hash(ticker) % 2**31).tolist()
-        scenarios    = bootstrap_scenarios(base, residuals, base_seed=hash(ticker) % 2**31)
+        all_pred    += bootstrap_future(base, residuals, seed=seed).tolist()
+        scenarios    = bootstrap_scenarios(base, residuals, base_seed=seed)
 
     return {
         "dates": all_dates,
