@@ -63,7 +63,13 @@ def _fit_and_predict_lstm(train: np.ndarray, val: np.ndarray, window: int):
 
 
 def _fit_and_predict_hybrid(train: np.ndarray, val: np.ndarray, window: int):
-    """ARIMA+LSTM гибрид: обучить на train, walk-forward на val."""
+    """ARIMA+LSTM гибрид: обучить на train, walk-forward на val.
+
+    Возвращает val_residuals — остатки e_t = actual_t − own_arima_fc_t,
+    вычисленные на шагах val через собственный ARIMA-объект этой модели.
+    Используется в run_ensemble для корректной инициализации истории остатков
+    перед test walk-forward.
+    """
     arima = auto_arima(train, seasonal=False, information_criterion="aic",
                        stepwise=True, suppress_warnings=True, error_action="ignore",
                        max_p=5, max_q=5, d=1)
@@ -82,22 +88,32 @@ def _fit_and_predict_hybrid(train: np.ndarray, val: np.ndarray, window: int):
     lstm.fit(X, y, epochs=50, batch_size=bs, validation_split=vs,
              callbacks=[es], verbose=0)
 
-    hist_res = list(res)
-    preds    = []
+    hist_res      = list(res)
+    preds         = []
+    val_residuals = []   # e_t = actual - own_arima_fc, собранные за val
+
     for actual in val:
-        fc = float(arima.predict(1)[0])
-        w  = np.array(hist_res[-window:]).reshape(-1, 1)
+        fc   = float(arima.predict(1)[0])
+        own_resid = float(actual) - fc          # остаток относительно ЭТОГО ARIMA
+        w    = np.array(hist_res[-window:]).reshape(-1, 1)
         w_sc = res_sc.transform(w).reshape(1, window, 1)
         corr = float(res_sc.inverse_transform([[lstm.predict(w_sc, verbose=0)[0, 0]]])[0, 0])
         preds.append(fc + corr)
-        hist_res.append(float(actual) - fc)
+        hist_res.append(own_resid)
+        val_residuals.append(own_resid)
         arima.update([float(actual)])
 
-    return np.array(preds), arima, lstm, res_sc
+    return np.array(preds), arima, lstm, res_sc, val_residuals
 
 
 def _fit_and_predict_triple(train: np.ndarray, val: np.ndarray, window: int):
-    """ARIMA+GARCH+LSTM тройной гибрид: train→ обучить, val → walk-forward."""
+    """ARIMA+GARCH+LSTM тройной гибрид: train→ обучить, val → walk-forward.
+
+    Возвращает val_residuals — остатки e_t = actual_t − own_arima_fc_t,
+    вычисленные на шагах val через собственный ARIMA-объект этой модели.
+    Используется в run_ensemble для корректной инициализации истории остатков
+    перед test walk-forward.
+    """
     arima = auto_arima(train, seasonal=False, information_criterion="aic",
                        stepwise=True, suppress_warnings=True, error_action="ignore",
                        max_p=5, max_q=5, d=1)
@@ -120,10 +136,13 @@ def _fit_and_predict_triple(train: np.ndarray, val: np.ndarray, window: int):
     lstm.fit(X, y, epochs=50, batch_size=bs, validation_split=vs,
              callbacks=[es], verbose=0)
 
-    hist_res = list(res)
-    preds    = []
+    hist_res      = list(res)
+    preds         = []
+    val_residuals = []   # e_t = actual - own_arima_fc, собранные за val
+
     for actual in val:
-        fc  = float(arima.predict(1)[0])
+        fc        = float(arima.predict(1)[0])
+        own_resid = float(actual) - fc          # остаток относительно ЭТОГО ARIMA
         ha  = np.array(hist_res)
         try:
             sv = float(fit_garch_cond_var(ha)[-1])
@@ -135,10 +154,11 @@ def _fit_and_predict_triple(train: np.ndarray, val: np.ndarray, window: int):
         corr_sc = float(lstm.predict(wr2, verbose=0)[0, 0])
         corr    = float(res_sc.inverse_transform([[corr_sc]])[0, 0])
         preds.append(fc + corr)
-        hist_res.append(float(actual) - fc)
+        hist_res.append(own_resid)
+        val_residuals.append(own_resid)
         arima.update([float(actual)])
 
-    return np.array(preds), arima, lstm, res_sc, var_sc
+    return np.array(preds), arima, lstm, res_sc, var_sc, val_residuals
 
 
 # ── Главная функция ────────────────────────────────────────────────────────────
@@ -174,12 +194,13 @@ def run_ensemble(ticker: str, start: str, end: str, window: int = 60, n_future: 
     val_preds["lstm"], states["lstm_model"], states["lstm_scaler"] = \
         _fit_and_predict_lstm(train_core, val_prices, window)
 
-    val_preds["hybrid"], states["hybrid_arima"], states["hybrid_lstm"], \
-        states["hybrid_res_sc"] = \
+    (val_preds["hybrid"], states["hybrid_arima"], states["hybrid_lstm"],
+     states["hybrid_res_sc"], states["hybrid_val_residuals"]) = \
         _fit_and_predict_hybrid(train_core, val_prices, window)
 
-    val_preds["triple"], states["triple_arima"], states["triple_lstm"], \
-        states["triple_res_sc"], states["triple_var_sc"] = \
+    (val_preds["triple"], states["triple_arima"], states["triple_lstm"],
+     states["triple_res_sc"], states["triple_var_sc"],
+     states["triple_val_residuals"]) = \
         _fit_and_predict_triple(train_core, val_prices, window)
 
     # ── Веса: wᵢ = (1/RMSEᵢ) / Σ(1/RMSEⱼ) ───────────────────────────────────
@@ -210,15 +231,11 @@ def run_ensemble(ticker: str, start: str, end: str, window: int = 60, n_future: 
         test_pred_each["lstm"].append(p)
 
     # Hybrid — продолжаем от val
-    hybrid_arima  = states["hybrid_arima"]
-    hybrid_lstm   = states["hybrid_lstm"]
-    hybrid_res_sc = states["hybrid_res_sc"]
-    # history_res из val (восстанавливаем остатки через val_preds["arima"],
-    # как в оригинале; Phase 1.5 исправит это на корректные hybrid-остатки)
-    hybrid_history_res = []
-    for i, actual in enumerate(val_prices):
-        fc  = float(val_preds["arima"][i])
-        hybrid_history_res.append(float(actual) - fc)
+    hybrid_arima      = states["hybrid_arima"]
+    hybrid_lstm       = states["hybrid_lstm"]
+    hybrid_res_sc     = states["hybrid_res_sc"]
+    # Используем собственные остатки hybrid-ARIMA за val (исправление Phase 1.5)
+    hybrid_history_res = list(states["hybrid_val_residuals"])
     for actual in test_prices:
         fc  = float(hybrid_arima.predict(1)[0])
         w   = np.array(hybrid_history_res[-window:]).reshape(-1, 1)
@@ -232,16 +249,12 @@ def run_ensemble(ticker: str, start: str, end: str, window: int = 60, n_future: 
         hybrid_arima.update([float(actual)])
 
     # Triple — продолжаем от val
-    triple_arima  = states["triple_arima"]
-    triple_lstm   = states["triple_lstm"]
-    triple_res_sc = states["triple_res_sc"]
-    triple_var_sc = states["triple_var_sc"]
-    # history_res из val (восстанавливаем остатки через val_preds["arima"],
-    # как в оригинале; Phase 1.5 исправит это на корректные triple-остатки)
-    triple_history_res = []
-    for i, actual in enumerate(val_prices):
-        fc = float(val_preds["arima"][i])
-        triple_history_res.append(float(actual) - fc)
+    triple_arima      = states["triple_arima"]
+    triple_lstm       = states["triple_lstm"]
+    triple_res_sc     = states["triple_res_sc"]
+    triple_var_sc     = states["triple_var_sc"]
+    # Используем собственные остатки triple-ARIMA за val (исправление Phase 1.5)
+    triple_history_res = list(states["triple_val_residuals"])
     for actual in test_prices:
         fc   = float(triple_arima.predict(1)[0])
         ha   = np.array(triple_history_res)
