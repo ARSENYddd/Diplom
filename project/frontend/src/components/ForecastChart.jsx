@@ -29,39 +29,55 @@ const SCENARIO_LABELS = {
   'Бычий':         { emoji: '🐂', desc: 'Позитивный сценарий' },
 }
 
-// ─── Scrollbar (нативный range slider) ───────────────────────────────────────
-function Scrollbar({ vsIdx, veIdx, totalLen, onRange }) {
+// ─── Scrollbar (нативный range slider + zoom buttons) ───────────────────────
+function Scrollbar({ vsIdx, veIdx, totalLen, onRange, onZoom }) {
   const range    = veIdx - vsIdx
   const maxStart = Math.max(0, totalLen - 1 - range)
   const isZoomed = range < totalLen - 1
+  const pct      = totalLen > 0 ? Math.round((range + 1) / totalLen * 100) : 100
 
   return (
     <div className="px-1 space-y-0.5">
       {/* Info row */}
       <div className="flex justify-between text-[10px] text-slate-600">
-        <span>{isZoomed ? `${vsIdx + 1} – ${veIdx + 1}` : `все ${totalLen}`}</span>
-        <span>
-          {isZoomed
-            ? `из ${totalLen} баров (${Math.round((range + 1) / totalLen * 100)}%)`
-            : 'приблизьте колесом мыши → тяните ползунок'}
-        </span>
+        <span>{`${vsIdx + 1} – ${veIdx + 1}`}</span>
+        <span>{`из ${totalLen} баров (${pct}%)`}</span>
       </div>
 
-      {/* Native range input — always draggable */}
-      <input
-        type="range"
-        min={0}
-        max={Math.max(maxStart, 1)}
-        step={1}
-        value={isZoomed ? vsIdx : 0}
-        disabled={!isZoomed}
-        onChange={e => {
-          const ns = parseInt(e.target.value, 10)
-          onRange(ns, ns + range)
-        }}
-        className="w-full h-2 cursor-pointer disabled:cursor-default disabled:opacity-30"
-        style={{ accentColor: '#6366f1' }}
-      />
+      {/* Slider + zoom buttons */}
+      <div className="flex items-center gap-1.5">
+        <button
+          onClick={() => onZoom('out')}
+          disabled={!isZoomed}
+          className="flex-shrink-0 w-6 h-6 rounded bg-slate-800 border border-slate-600 text-slate-400
+                     hover:text-white hover:border-slate-500 disabled:opacity-30 disabled:cursor-default
+                     flex items-center justify-center text-sm font-bold transition-all"
+          title="Уменьшить масштаб"
+        >−</button>
+
+        <input
+          type="range"
+          min={0}
+          max={Math.max(maxStart, 1)}
+          step={1}
+          value={vsIdx}
+          onChange={e => {
+            const ns = parseInt(e.target.value, 10)
+            onRange(ns, ns + range)
+          }}
+          className="flex-1 h-2 cursor-pointer"
+          style={{ accentColor: '#6366f1' }}
+        />
+
+        <button
+          onClick={() => onZoom('in')}
+          disabled={range <= 10}
+          className="flex-shrink-0 w-6 h-6 rounded bg-slate-800 border border-slate-600 text-slate-400
+                     hover:text-white hover:border-slate-500 disabled:opacity-30 disabled:cursor-default
+                     flex items-center justify-center text-sm font-bold transition-all"
+          title="Увеличить масштаб"
+        >+</button>
+      </div>
     </div>
   )
 }
@@ -194,12 +210,14 @@ export default function ForecastChart({ data, compact = false }) {
 
   const totalLen = chartData.length
 
-  // Reset view whenever new data arrives
+  // Reset view whenever new data arrives — start zoomed to last 80% so scrollbar is usable
   useEffect(() => {
-    if (!data) return
-    setViewStart(0)
-    setViewEnd(null)
-    vsRef.current       = 0
+    if (!data || totalLen === 0) return
+    const defaultRange = Math.max(20, Math.round(totalLen * 0.8))
+    const startIdx     = Math.max(0, totalLen - defaultRange)
+    setViewStart(startIdx)
+    setViewEnd(totalLen - 1)
+    vsRef.current       = startIdx
     veRef.current       = totalLen - 1
     totalLenRef.current = totalLen
   }, [data, totalLen])
@@ -308,6 +326,26 @@ export default function ForecastChart({ data, compact = false }) {
 
   const handleMouseUp = useCallback(() => { isDragging.current = false }, [])
 
+  // Zoom via buttons
+  const handleZoom = useCallback((dir) => {
+    const vs  = vsRef.current
+    const ve  = veRef.current
+    const len = totalLenRef.current
+    if (len === 0) return
+    const count = ve - vs + 1
+    const step  = Math.max(5, Math.round(count * 0.15))
+    let newStart, newEnd
+    if (dir === 'in') {
+      newStart = Math.min(vs + step, ve - 10)
+      newEnd   = Math.max(ve - step, newStart + 10)
+    } else {
+      newStart = Math.max(0, vs - step)
+      newEnd   = Math.min(len - 1, ve + step)
+    }
+    setViewStart(newStart)
+    setViewEnd(newEnd >= len - 1 ? null : newEnd)
+  }, [])
+
   const handleUndo  = useCallback(() => setDrawings(p => p.slice(0, -1)), [])
   const handleClear = useCallback(() => setDrawings([]), [])
 
@@ -345,7 +383,7 @@ export default function ForecastChart({ data, compact = false }) {
           <div className="flex items-center gap-2">
             {zoomPct < 99 && (
               <button
-                onClick={() => { setViewStart(0); setViewEnd(null) }}
+                onClick={() => { setViewStart(0); setViewEnd(totalLen - 1) }}
                 className="text-xs px-2 py-1 rounded bg-slate-800 border border-slate-600 text-slate-400 hover:text-white hover:border-slate-500 transition-all flex items-center gap-1"
                 title="Сбросить масштаб"
               >
@@ -411,7 +449,7 @@ export default function ForecastChart({ data, compact = false }) {
         <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
           <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35" strokeLinecap="round"/>
         </svg>
-        Колесо / щипок — масштаб · Свайп двумя пальцами или перетащи — прокрутка
+        Колесо / щипок / кнопки ± — масштаб · Ползунок / свайп / перетаскивание — прокрутка
       </p>
 
       {/* Chart area */}
@@ -448,6 +486,7 @@ export default function ForecastChart({ data, compact = false }) {
         <Scrollbar
           vsIdx={vsIdx} veIdx={veIdx} totalLen={totalLen}
           onRange={(s, e) => { setViewStart(s); setViewEnd(e >= totalLen - 1 ? null : e) }}
+          onZoom={handleZoom}
         />
       )}
 
