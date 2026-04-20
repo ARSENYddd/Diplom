@@ -3,39 +3,9 @@ from sklearn.preprocessing import MinMaxScaler
 from services.data_service import load_data, train_test_split_series
 from services.metrics import compute_all
 from services.forecast_utils import future_trading_dates, bootstrap_future, bootstrap_scenarios
-
-import os
-os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
-try:
-    import tensorflow as tf
-    tf.get_logger().setLevel("ERROR")
-    from tensorflow.keras.models import Sequential
-    from tensorflow.keras.layers import LSTM, Dense, Dropout, Input
-    from tensorflow.keras.callbacks import EarlyStopping
-    HAS_TF = True
-except ImportError:
-    HAS_TF = False
-
-
-def _build_sequences(data: np.ndarray, window: int):
-    X, y = [], []
-    for i in range(window, len(data)):
-        X.append(data[i - window: i, 0])
-        y.append(data[i, 0])
-    return np.array(X), np.array(y)
-
-
-def _build_model(window: int):
-    m = Sequential([
-        Input(shape=(window, 1)),
-        LSTM(64, return_sequences=True),
-        Dropout(0.2),
-        LSTM(64, return_sequences=False),
-        Dropout(0.2),
-        Dense(1),
-    ])
-    m.compile(optimizer="adam", loss="mean_squared_error")
-    return m
+from models._common import (
+    HAS_TF, _build_sequences_1d, build_lstm_1d, make_early_stopping, get_seed,
+)
 
 
 def run_lstm(ticker: str, start: str, end: str, window: int = 60, n_future: int = 0) -> dict:
@@ -60,16 +30,15 @@ def run_lstm(ticker: str, start: str, end: str, window: int = 60, n_future: int 
     scaler = MinMaxScaler(feature_range=(0, 1))
     train_scaled = scaler.fit_transform(train_prices.reshape(-1, 1))
 
-    X_train, y_train = _build_sequences(train_scaled, window)
+    X_train, y_train = _build_sequences_1d(train_scaled, window)
     X_train = X_train.reshape(X_train.shape[0], window, 1)
 
     # Adjust batch_size for small datasets
     batch_size = min(32, max(1, len(X_train) // 4))
     val_split  = 0.1 if len(X_train) >= 20 else 0.0
 
-    model = _build_model(window)
-    es = EarlyStopping(monitor="val_loss" if val_split > 0 else "loss",
-                       patience=5, restore_best_weights=True)
+    model = build_lstm_1d(window)
+    es    = make_early_stopping(val_split)
     model.fit(X_train, y_train, epochs=50, batch_size=batch_size,
               validation_split=val_split, callbacks=[es], verbose=0)
 
@@ -100,6 +69,7 @@ def run_lstm(ticker: str, start: str, end: str, window: int = 60, n_future: int 
     future_from = len(all_dates)
 
     # --- Future forecast: autoregressive + bootstrap scenarios ---
+    seed = get_seed(ticker)
     scenarios = []
     if n_future > 0:
         rolling = list(all_scaled[-window:, 0])
@@ -116,8 +86,8 @@ def run_lstm(ticker: str, start: str, end: str, window: int = 60, n_future: int 
         future_dates = future_trading_dates(test_dates[-1], n_future)
         all_dates   += future_dates
         all_actual  += [None] * n_future
-        all_pred    += bootstrap_future(base_prices, residuals, seed=hash(ticker) % 2**31).tolist()
-        scenarios    = bootstrap_scenarios(base_prices, residuals, base_seed=hash(ticker) % 2**31)
+        all_pred    += bootstrap_future(base_prices, residuals, seed=seed).tolist()
+        scenarios    = bootstrap_scenarios(base_prices, residuals, base_seed=seed)
 
     return {
         "dates": all_dates,

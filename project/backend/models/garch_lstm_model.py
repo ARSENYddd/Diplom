@@ -15,41 +15,10 @@ from sklearn.preprocessing import MinMaxScaler
 from services.data_service import load_data, train_test_split_series
 from services.metrics import compute_all
 from services.forecast_utils import future_trading_dates, bootstrap_future, bootstrap_scenarios
-
-import os
-os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
-try:
-    import tensorflow as tf
-    tf.get_logger().setLevel("ERROR")
-    from tensorflow.keras.models import Sequential
-    from tensorflow.keras.layers import LSTM, Dense, Dropout, Input
-    from tensorflow.keras.callbacks import EarlyStopping
-    HAS_TF = True
-except ImportError:
-    HAS_TF = False
-
-
-def _build_sequences_2d(data: np.ndarray, window: int):
-    """data: (N, features) → X:(N-window, window, features), y:(N-window,)"""
-    X, y = [], []
-    for i in range(window, len(data)):
-        X.append(data[i - window: i, :])
-        y.append(data[i, 0])      # предсказываем первую колонку (scaled price)
-    return np.array(X), np.array(y)
-
-
-def _build_lstm_2d(window: int, n_features: int = 2):
-    """2×LSTM(64) + Dropout(0.2) + Dense(1) для двумерного входа."""
-    m = Sequential([
-        Input(shape=(window, n_features)),
-        LSTM(64, return_sequences=True),
-        Dropout(0.2),
-        LSTM(64, return_sequences=False),
-        Dropout(0.2),
-        Dense(1),
-    ])
-    m.compile(optimizer="adam", loss="mean_squared_error")
-    return m
+from models._common import (
+    HAS_TF, _build_sequences_2d, build_lstm_2d, fit_garch_cond_var,
+    make_early_stopping, get_seed,
+)
 
 
 def _fit_garch_volatility(prices: np.ndarray) -> np.ndarray:
@@ -58,12 +27,8 @@ def _fit_garch_volatility(prices: np.ndarray) -> np.ndarray:
     условную дисперсию σ²_t для каждого шага (aligned with prices[1:]).
     """
     log_returns = np.diff(np.log(prices)) * 100
-    gm = arch_model(log_returns, vol="Garch", p=1, q=1, dist="normal")
-    res = gm.fit(disp="off", show_warning=False)
-    # conditional_volatility: std → var
-    cond_vol = res.conditional_volatility   # shape (len(log_returns),)
-    cond_var = cond_vol ** 2
-    return cond_var                         # aligned with prices[1:]
+    # log_returns уже масштабированы (*100), поэтому scale=1.0
+    return fit_garch_cond_var(log_returns, scale=1.0)
 
 
 def run_garch_lstm(ticker: str, start: str, end: str, window: int = 60, n_future: int = 0) -> dict:
@@ -104,9 +69,8 @@ def run_garch_lstm(ticker: str, start: str, end: str, window: int = 60, n_future
     batch_size = min(32, max(1, len(X_train) // 4))
     val_split  = 0.1 if len(X_train) >= 20 else 0.0
 
-    lstm = _build_lstm_2d(window, n_features=2)
-    es   = EarlyStopping(monitor="val_loss" if val_split > 0 else "loss",
-                         patience=5, restore_best_weights=True)
+    lstm = build_lstm_2d(window, n_features=2)
+    es   = make_early_stopping(val_split)
     lstm.fit(X_train, y_train, epochs=50, batch_size=batch_size,
              validation_split=val_split, callbacks=[es], verbose=0)
 
@@ -162,6 +126,7 @@ def run_garch_lstm(ticker: str, start: str, end: str, window: int = 60, n_future
     future_from = len(all_dates)
 
     # ── Future forecast ────────────────────────────────────────────────────────
+    seed = get_seed(ticker)
     scenarios = []
     if n_future > 0:
         # GARCH forecast для будущих волатильностей
@@ -186,8 +151,8 @@ def run_garch_lstm(ticker: str, start: str, end: str, window: int = 60, n_future
         future_dates = future_trading_dates(test_dates[-1], n_future)
         all_dates   += future_dates
         all_actual  += [None] * n_future
-        all_pred    += bootstrap_future(base_prices, residuals, seed=hash(ticker) % 2**31).tolist()
-        scenarios    = bootstrap_scenarios(base_prices, residuals, base_seed=hash(ticker) % 2**31)
+        all_pred    += bootstrap_future(base_prices, residuals, seed=seed).tolist()
+        scenarios    = bootstrap_scenarios(base_prices, residuals, base_seed=seed)
 
     return {
         "dates": all_dates,

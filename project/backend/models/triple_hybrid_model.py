@@ -12,53 +12,15 @@ ARIMA захватывает линейный тренд, GARCH определя
 """
 import numpy as np
 from pmdarima import auto_arima
-from arch import arch_model
 from sklearn.preprocessing import MinMaxScaler
 from services.data_service import load_data, train_test_split_series
 from services.metrics import compute_all
 from services.forecast_utils import future_trading_dates, bootstrap_future, bootstrap_scenarios
-
-import os
-os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
-try:
-    import tensorflow as tf
-    tf.get_logger().setLevel("ERROR")
-    from tensorflow.keras.models import Sequential
-    from tensorflow.keras.layers import LSTM, Dense, Dropout, Input
-    from tensorflow.keras.callbacks import EarlyStopping
-    HAS_TF = True
-except ImportError:
-    HAS_TF = False
-
-
-def _build_sequences_2d(data: np.ndarray, window: int):
-    """data: (N, 2) → X:(N-window, window, 2), y:(N-window,)"""
-    X, y = [], []
-    for i in range(window, len(data)):
-        X.append(data[i - window: i, :])
-        y.append(data[i, 0])     # предсказываем scaled residual
-    return np.array(X), np.array(y)
-
-
-def _build_lstm_2d(window: int):
-    """2×LSTM(64) + Dropout(0.2) + Dense(1), input_shape=(window, 2)."""
-    m = Sequential([
-        Input(shape=(window, 2)),
-        LSTM(64, return_sequences=True),
-        Dropout(0.2),
-        LSTM(64, return_sequences=False),
-        Dropout(0.2),
-        Dense(1),
-    ])
-    m.compile(optimizer="adam", loss="mean_squared_error")
-    return m
-
-
-def _garch_cond_var(series: np.ndarray) -> np.ndarray:
-    """GARCH(1,1) на series → условная дисперсия, выровненная с series."""
-    gm  = arch_model(series * 100, vol="Garch", p=1, q=1, dist="normal")
-    res = gm.fit(disp="off", show_warning=False)
-    return res.conditional_volatility ** 2   # shape = len(series)
+from models._common import (
+    HAS_TF, _build_sequences_2d, build_lstm_2d, fit_garch_cond_var,
+    make_early_stopping, get_seed,
+)
+from arch import arch_model
 
 
 def run_triple_hybrid(ticker: str, start: str, end: str, window: int = 60, n_future: int = 0) -> dict:
@@ -89,7 +51,7 @@ def run_triple_hybrid(ticker: str, start: str, end: str, window: int = 60, n_fut
     train_residuals = train_aligned - arima_insample  # e¹_t
 
     # ── Уровень 2: GARCH на остатках → σ²_t ───────────────────────────────────
-    res_cond_var = _garch_cond_var(train_residuals)   # len = len(train_residuals)
+    res_cond_var = fit_garch_cond_var(train_residuals)   # len = len(train_residuals)
 
     # ── Уровень 3: LSTM на [e¹_t, σ²_t] ──────────────────────────────────────
     res_scaler = MinMaxScaler(feature_range=(-1, 1))
@@ -104,9 +66,8 @@ def run_triple_hybrid(ticker: str, start: str, end: str, window: int = 60, n_fut
     batch_size = min(32, max(1, len(X_train) // 4))
     val_split  = 0.1 if len(X_train) >= 20 else 0.0
 
-    lstm = _build_lstm_2d(window)
-    es   = EarlyStopping(monitor="val_loss" if val_split > 0 else "loss",
-                         patience=5, restore_best_weights=True)
+    lstm = build_lstm_2d(window)
+    es   = make_early_stopping(val_split)
     lstm.fit(X_train, y_train, epochs=50, batch_size=batch_size,
              validation_split=val_split, callbacks=[es], verbose=0)
 
@@ -122,7 +83,7 @@ def run_triple_hybrid(ticker: str, start: str, end: str, window: int = 60, n_fut
         # GARCH на текущей истории остатков → σ² последнего шага
         hist_arr = np.array(history_res)
         try:
-            step_var = float(_garch_cond_var(hist_arr)[-1])
+            step_var = float(fit_garch_cond_var(hist_arr)[-1])
         except Exception:
             step_var = float(np.var(hist_arr[-window:]))
 
@@ -158,6 +119,7 @@ def run_triple_hybrid(ticker: str, start: str, end: str, window: int = 60, n_fut
     future_from = len(all_dates)
 
     # ── Future forecast ────────────────────────────────────────────────────────
+    seed = get_seed(ticker)
     scenarios = []
     if n_future > 0:
         arima_future = arima.predict(n_periods=n_future)
@@ -188,8 +150,8 @@ def run_triple_hybrid(ticker: str, start: str, end: str, window: int = 60, n_fut
         future_dates = future_trading_dates(test_dates[-1], n_future)
         all_dates   += future_dates
         all_actual  += [None] * n_future
-        all_pred    += bootstrap_future(base_prices, residuals, seed=hash(ticker) % 2**31).tolist()
-        scenarios    = bootstrap_scenarios(base_prices, residuals, base_seed=hash(ticker) % 2**31)
+        all_pred    += bootstrap_future(base_prices, residuals, seed=seed).tolist()
+        scenarios    = bootstrap_scenarios(base_prices, residuals, base_seed=seed)
 
     return {
         "dates": all_dates,
