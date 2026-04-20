@@ -13,6 +13,8 @@ import asyncio
 from datetime import date, timedelta
 
 from services.data_service import get_price_series
+from services.signals import generate_signals, available_strategies
+from services.backtest import run_backtest
 from models.arima_model import run_arima
 from models.garch_model import run_garch
 from models.lstm_model import run_lstm
@@ -97,7 +99,25 @@ class ForecastRequest(BaseModel):
         "triple_hybrid", "ensemble"
     ] = "arima_lstm"
     window: int = 60
-    today: str = ""  # client-supplied "today" date (YYYY-MM-DD); avoids server clock issues
+    today: str = ""          # клиентская дата "сегодня" (YYYY-MM-DD), чтобы не зависеть от серверных часов
+    include_signals: bool = False  # если True — добавить сигналы и торговые метрики в ответ
+
+
+class BacktestRequest(BaseModel):
+    ticker: str = "^GSPC"
+    start: str = "2015-01-01"
+    end: str = "2024-01-01"
+    model: str = "arima_lstm"           # ключ из MODEL_RUNNERS; валидируется вручную → 400
+    window: int = 60
+    today: str = ""
+    strategy: str = "momentum"          # "threshold" | "momentum" | "mean_reversion"
+    commission: float = 0.001           # ставка комиссии (доля; применяется 2× — при открытии и закрытии)
+    slippage: float = 0.0005            # проскальзывание цены исполнения
+    allow_short: bool = False           # разрешить короткие позиции
+    initial_capital: float = 10_000.0   # начальный капитал
+    reinvest: bool = True               # реинвестировать прибыль в следующие сделки
+    risk_free_rate: float = 0.0         # годовая безрисковая ставка для Sharpe
+    n_future: int = 0                   # дней прогноза вперёд (для forecast-части ответа)
 
 
 @app.get("/api/data")
@@ -122,26 +142,129 @@ async def forecast(req: ForecastRequest):
         raise HTTPException(status_code=400, detail=f"Unknown model: {req.model}")
     try:
         n_future = _count_future_days(req.end, req.today)
-        # Cap at 500 trading days (~2 years) to stay reasonable
-        n_future = min(n_future, 500)
+        n_future = min(n_future, 500)  # ограничиваем 500 торговыми днями (~2 года)
 
-        # Cap the data download end date at client "today" so that yfinance
-        # doesn't get capped by the (potentially wrong) server clock.
-        # We still use req.end for n_future calculation above.
-        if req.today:
-            data_end = min(req.end, req.today)
-        else:
-            data_end = req.end
+        # Ограничиваем дату загрузки клиентским "сегодня", чтобы не зависеть от серверных часов
+        data_end = min(req.end, req.today) if req.today else req.end
 
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(
             None,
             lambda: runner(req.ticker, req.start, data_end, req.window, n_future),
         )
+
+        # Опциональное добавление торговых сигналов и метрик
+        if req.include_signals:
+            try:
+                sig = generate_signals(result, strategy="momentum")
+                bt  = run_backtest(sig)
+                m   = bt["metrics"]
+                result = dict(result)   # копируем чтобы не мутировать оригинал
+                result["signals"] = sig
+                result["trading_metrics"] = {
+                    "sharpe":       m.get("sharpe"),
+                    "max_drawdown": m.get("max_drawdown"),
+                    "winrate":      m.get("winrate"),
+                    "n_trades":     m.get("n_trades"),
+                }
+            except Exception as sig_err:
+                # Ошибка в торговом слое не ломает основной прогноз
+                logging.warning("include_signals failed: %s", sig_err)
+                result = dict(result)
+                result["signals_error"] = str(sig_err)
+
         return result
     except Exception as e:
         logging.error(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/backtest")
+async def backtest(req: BacktestRequest):
+    """
+    Полный цикл: прогноз модели → торговые сигналы → бэктест с комиссиями.
+
+    Возвращает три блока:
+      forecast  — стандартный output модели (даты, цены, метрики MAE/RMSE/MAPE)
+      signals   — BUY/SELL/HOLD для тестового периода
+      backtest  — equity curve, сделки, торговые метрики (Sharpe, MaxDD, ...)
+    """
+    # Валидация модели (используем str вместо Literal — проще расширять)
+    runner = MODEL_RUNNERS.get(req.model)
+    if runner is None:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": f"Unknown model: '{req.model}'",
+                "available": list(MODEL_RUNNERS.keys()),
+            },
+        )
+
+    # Валидация стратегии
+    valid_strategies = available_strategies()
+    if req.strategy not in valid_strategies:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": f"Unknown strategy: '{req.strategy}'",
+                "available": valid_strategies,
+            },
+        )
+
+    try:
+        n_future = min(_count_future_days(req.end, req.today), 500)
+        data_end = min(req.end, req.today) if req.today else req.end
+
+        loop = asyncio.get_event_loop()
+
+        # Прогон модели (CPU-bound — в executor, чтобы не блокировать event loop)
+        forecast_result = await loop.run_in_executor(
+            None,
+            lambda: runner(req.ticker, req.start, data_end, req.window, n_future),
+        )
+    except Exception as e:
+        logging.error(traceback.format_exc())
+        raise HTTPException(
+            status_code=422,
+            detail={"error": "Model failed", "detail": str(e)},
+        )
+
+    try:
+        # Генерация сигналов и бэктест (быстро, можно синхронно)
+        signals_result = generate_signals(forecast_result, strategy=req.strategy)
+        bt_result = run_backtest(
+            signals_result,
+            initial_capital=req.initial_capital,
+            commission=req.commission,
+            slippage=req.slippage,
+            allow_short=req.allow_short,
+            reinvest=req.reinvest,
+            risk_free_rate=req.risk_free_rate,
+        )
+    except Exception as e:
+        logging.error(traceback.format_exc())
+        raise HTTPException(
+            status_code=422,
+            detail={"error": "Trading layer failed", "detail": str(e)},
+        )
+
+    # Предупреждение при нулевом количестве сделок (не ошибка — это штатная ситуация)
+    warning = None
+    if bt_result["metrics"].get("n_trades", 0) == 0:
+        warning = (
+            f"Strategy '{req.strategy}' generated no trades for model '{req.model}' "
+            f"on this period. Consider using 'momentum' or 'mean_reversion'."
+        )
+
+    response = {
+        "forecast": forecast_result,
+        "signals":  signals_result,
+        "backtest": bt_result,
+    }
+    if warning:
+        response["warning"] = warning
+
+    return response
 
 
 @app.get("/api/compare")

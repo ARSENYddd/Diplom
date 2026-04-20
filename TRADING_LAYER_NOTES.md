@@ -233,3 +233,55 @@ Sharpe ненадёжен при N < 30 торговых дней доходно
 На данном периоде (AAPL 2022–2023) ARIMA+GRU — оптимальная модель по
 risk/reward. Выборка мала (8 сделок) — для статистически значимых выводов
 нужно тестирование на более длинных периодах и разных тикерах.
+
+---
+
+## 6. ЧТО СДЕЛАНО — финальный список
+
+### Новые файлы
+
+| Файл | Назначение |
+|---|---|
+| `project/backend/services/signals.py` | Генерация сигналов BUY/SELL/HOLD: 3 стратегии × 3 метода position sizing, vol_filter, generate_future_signals |
+| `project/backend/services/backtest.py` | Честный бэктест с комиссиями, слиппеджем, шортами, reinvest режимами |
+| `project/backend/services/trading_metrics.py` | Sharpe, MaxDrawdown, Calmar, WinRate, ProfitFactor, compute_trading_metrics |
+| `scripts/test_signals.py` | Smoke-test: ARIMA → 3 стратегии, distribution + таблица |
+| `scripts/test_backtest.py` | Smoke-test: ARIMA → momentum → бэктест, ASCII equity curve, сравнение стратегий |
+| `scripts/compare_models.py` | Сравнение 8 моделей: CLI --ticker/--start/--end/--strategy/--commission/--risk-free-rate, таблица + JSON |
+| `results/comparison_AAPL_2026-04-20.json` | Первый прогон результатов |
+| `TRADING_LAYER_NOTES.md` | Этот документ |
+
+### Изменённые файлы
+
+| Файл | Что изменено |
+|---|---|
+| `project/backend/main.py` | +2 импорта, +`BacktestRequest` схема, +поле `include_signals` в `ForecastRequest`, расширен хендлер `POST /api/forecast`, добавлен `POST /api/backtest` |
+
+### Новые/изменённые эндпоинты
+
+| Метод | URL | Что делает |
+|---|---|---|
+| `POST` | `/api/backtest` | **Новый.** Полный цикл: модель → сигналы → бэктест. Тело: `BacktestRequest`. Ответ: `{forecast, signals, backtest}` |
+| `POST` | `/api/forecast` | **Расширен.** Добавлен опциональный параметр `include_signals: bool = false`. При `true` добавляет `signals` и `trading_metrics` (Sharpe, MaxDD, WinRate, N_trades) |
+
+### Коды ошибок `/api/backtest`
+
+| Ситуация | HTTP |
+|---|---|
+| Неизвестная модель | 400 + `{"available": [...]}` |
+| Неизвестная стратегия | 400 + `{"available": [...]}` |
+| Ошибка модели (нет TF, мало данных) | 422 + `{"error": "Model failed", "detail": "..."}` |
+| Ошибка торгового слоя | 422 + `{"error": "Trading layer failed", "detail": "..."}` |
+| 0 сделок после бэктеста | 200 + поле `"warning"` в ответе |
+
+### Известные ограничения
+
+1. **Баг ансамбля** (`ensemble_model.py`): при `window=60` и коротком датасете `n_val < window` — ошибка reshape. Нужен отдельный фикс в `ensemble_model.py` (не в торговом слое).
+
+2. **`threshold` + ARIMA = 0 сделок**: ARIMA walk-forward возвращает `predicted[i] ≈ actual[i-1]`, ожидаемая доходность ≈ 0, порог 0.3% не преодолевается. Решение: использовать `momentum` или `mean_reversion`. В `include_signals` зашито `strategy="momentum"` именно по этой причине.
+
+3. **Малая выборка сделок**: тестовый период ~100 точек даёт 3–8 сделок. Sharpe/Calmar ненадёжны (флаг `low_confidence`). Для статистически значимых выводов нужны периоды 3–5 лет.
+
+4. **Шорты не тестировались на реальных данных**: логика реализована (`allow_short=True`), но из-за `allow_short=False` по умолчанию в тестах не прогонялась. Требует отдельной валидации.
+
+5. **Нет интеграции сигналов с фронтом**: API готов, фронт (`project/frontend/`) не менялся по условию задачи.
