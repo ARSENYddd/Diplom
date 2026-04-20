@@ -82,13 +82,27 @@ function Scrollbar({ vsIdx, veIdx, totalLen, onRange, onZoom }) {
   )
 }
 
+// ─── Маркеры сигналов BUY / SELL ────────────────────────────────────────────
+const BuyDot = (props) => {
+  const { cx, cy, value } = props
+  if (value == null) return null
+  return <polygon points={`${cx},${cy - 7} ${cx - 5},${cy + 3} ${cx + 5},${cy + 3}`}
+    fill="#4ade80" opacity={0.9} />
+}
+const SellDot = (props) => {
+  const { cx, cy, value } = props
+  if (value == null) return null
+  return <polygon points={`${cx},${cy + 7} ${cx - 5},${cy - 3} ${cx + 5},${cy - 3}`}
+    fill="#f87171" opacity={0.9} />
+}
+
 // ─── Memoized chart core ─────────────────────────────────────────────────────
 // Does NOT receive drawTool → switching tools never re-renders or re-animates the chart
 const ChartCore = memo(function ChartCore({
   visibleData, yDomain, xTicks,
   hasFuture, futureSplitDate,
   scenarios, hiddenScenarios, showScenarios,
-  compact,
+  compact, hasSignals,
 }) {
   return (
     <ResponsiveContainer width="100%" height={compact ? 280 : 380}>
@@ -141,13 +155,27 @@ const ChartCore = memo(function ChartCore({
               activeDot={{ r: 4 }} connectNulls={false} isAnimationActive={false} />
           )
         )}
+
+        {/* Маркеры сигналов — треугольники ▲ BUY (зелёные) и ▼ SELL (красные) */}
+        {hasSignals && (
+          <Line type="monotone" dataKey="buy_signal" name="BUY"
+            stroke="transparent" strokeWidth={0}
+            dot={<BuyDot />} activeDot={false}
+            legendType="triangle" isAnimationActive={false} />
+        )}
+        {hasSignals && (
+          <Line type="monotone" dataKey="sell_signal" name="SELL"
+            stroke="transparent" strokeWidth={0}
+            dot={<SellDot />} activeDot={false}
+            legendType="triangle" isAnimationActive={false} />
+        )}
       </ComposedChart>
     </ResponsiveContainer>
   )
 })
 
 // ─── Main component ──────────────────────────────────────────────────────────
-export default function ForecastChart({ data, compact = false }) {
+export default function ForecastChart({ data, compact = false, signals = null }) {
   // ── All hooks must be called unconditionally (Rules of Hooks) ──────────────
   const [drawTool,        setDrawTool]        = useState('cursor')
   const [drawings,        setDrawings]        = useState([])
@@ -186,17 +214,27 @@ export default function ForecastChart({ data, compact = false }) {
   const hasFuture  = futureFrom !== null
   const scenarios  = data?.scenarios ?? []
 
+  // Map дата → сигнал из торгового слоя (только тестовый период)
+  const signalMap = useMemo(() => {
+    if (!signals?.dates?.length) return new Map()
+    return new Map(signals.dates.map((d, i) => [d, signals.signals?.[i]]))
+  }, [signals])
+  const hasSignals = signalMap.size > 0
+
   // Build unified flat data array (empty when no data)
   const chartData = useMemo(() => {
     if (!data) return []
     return data.dates.map((d, i) => {
       const actual    = data.actual?.[i]    ?? null
       const predicted = data.predicted?.[i] ?? null
+      const sig       = signalMap.get(d)
       const row = {
-        date:     d,
-        Реальные: actual,
-        Прогноз:  (i >= testFrom && (!hasFuture || i < futureFrom)) ? predicted : null,
-        Базовый:  (hasFuture && i >= futureFrom) ? predicted : null,
+        date:        d,
+        Реальные:    actual,
+        Прогноз:     (i >= testFrom && (!hasFuture || i < futureFrom)) ? predicted : null,
+        Базовый:     (hasFuture && i >= futureFrom) ? predicted : null,
+        buy_signal:  sig === 'BUY'  ? actual : null,
+        sell_signal: sig === 'SELL' ? actual : null,
       }
       if (hasFuture && scenarios.length > 0) {
         scenarios.forEach(sc => {
@@ -206,7 +244,7 @@ export default function ForecastChart({ data, compact = false }) {
       }
       return row
     })
-  }, [data, testFrom, futureFrom, hasFuture, scenarios])
+  }, [data, testFrom, futureFrom, hasFuture, scenarios, signalMap])
 
   const totalLen = chartData.length
 
@@ -236,7 +274,8 @@ export default function ForecastChart({ data, compact = false }) {
 
   // Y domain — auto-scaled to visible data
   const yDomain = useMemo(() => {
-    const keys = ['Реальные', 'Прогноз', 'Базовый', ...scenarios.map(s => s.name)]
+    const keys = ['Реальные', 'Прогноз', 'Базовый', ...scenarios.map(s => s.name),
+                  'buy_signal', 'sell_signal']
     const vals  = visibleData
       .flatMap(d => keys.map(k => d[k]))
       .filter(v => v != null && isFinite(v))
@@ -473,6 +512,7 @@ export default function ForecastChart({ data, compact = false }) {
             hiddenScenarios={hiddenScenarios}
             showScenarios={showScenarios}
             compact={compact}
+            hasSignals={hasSignals}
           />
           <DrawingLayer
             tool={drawTool} drawings={drawings}
@@ -502,6 +542,7 @@ export default function ForecastChart({ data, compact = false }) {
             {' '}Сценарии: медвежий → бычий
           </span>
         )}
+        {hasSignals && <span><span className="text-emerald-400">▲</span> BUY &nbsp;<span className="text-red-400">▼</span> SELL</span>}
         <span className="ml-auto text-slate-600">↑ Инструменты рисования</span>
       </div>
     </div>

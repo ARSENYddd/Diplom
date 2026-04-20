@@ -10,3 +10,6 @@ export const fetchForecast = (body) =>
 
 export const fetchComparison = (ticker, start, end) =>
   api.get('/compare', { params: { ticker, start, end } }).then(r => r.data)
+
+export const fetchBacktest = (body) =>
+  api.post('/backtest', body).then(r => r.data)

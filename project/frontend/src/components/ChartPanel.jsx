@@ -1,6 +1,10 @@
 import { useState, useCallback } from 'react'
 import ForecastChart from './ForecastChart'
-import { fetchForecast } from '../api/client'
+import TradingControls from './TradingControls'
+import TradingMetricsCards from './TradingMetricsCards'
+import EquityChart from './EquityChart'
+import TradesTable from './TradesTable'
+import { fetchForecast, fetchBacktest } from '../api/client'
 
 const TICKER_GROUPS = [
   {
@@ -98,6 +102,13 @@ export default function ChartPanel({ panelId, onRemove, defaultParams = {} }) {
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState(null)
 
+  // Состояние торгового слоя
+  const [btConfig,   setBtConfig]   = useState({ strategy: 'momentum', commission: 0.001, initial_capital: 10000 })
+  const [btData,     setBtData]     = useState(null)
+  const [btLoading,  setBtLoading]  = useState(false)
+  const [btError,    setBtError]    = useState(null)
+  const [showTrading, setShowTrading] = useState(false)
+
   const isFuture = new Date(end) > new Date()
   const modelColor = MODEL_COLORS[model] ?? '#94a3b8'
   const tickerLabel = TICKER_GROUPS.flatMap(g => g.tickers).find(t => t.value === ticker)?.label ?? ticker
@@ -105,6 +116,9 @@ export default function ChartPanel({ panelId, onRemove, defaultParams = {} }) {
   const run = useCallback(async () => {
     setLoading(true)
     setError(null)
+    // Сброс бэктеста при новом прогнозе — данные устарели
+    setBtData(null)
+    setBtError(null)
     const today = new Date().toISOString().slice(0, 10)
     try {
       const result = await fetchForecast({ ticker, model, start, end, window: 60, today })
@@ -115,6 +129,38 @@ export default function ChartPanel({ panelId, onRemove, defaultParams = {} }) {
       setLoading(false)
     }
   }, [ticker, model, start, end])
+
+  const runBacktest = useCallback(async () => {
+    if (!data) return
+    setBtLoading(true)
+    setBtError(null)
+    const today = new Date().toISOString().slice(0, 10)
+    try {
+      const result = await fetchBacktest({
+        ticker, model, start, end, window: 60, today,
+        strategy:        btConfig.strategy,
+        commission:      btConfig.commission,
+        initial_capital: btConfig.initial_capital,
+        slippage:        0.0005,
+        reinvest:        true,
+        risk_free_rate:  0.0,
+      })
+      setBtData(result)
+    } catch (e) {
+      const detail = e.response?.data?.detail
+      setBtError(
+        typeof detail === 'object'
+          ? (detail.error || JSON.stringify(detail))
+          : (detail || e.message || 'Ошибка бэктеста')
+      )
+    } finally {
+      setBtLoading(false)
+    }
+  }, [ticker, model, start, end, btConfig, data])
+
+  const handleBtConfigChange = useCallback((field, value) => {
+    setBtConfig(prev => ({ ...prev, [field]: value }))
+  }, [])
 
   return (
     <div className="bg-slate-900 border border-slate-700 rounded-xl flex flex-col overflow-hidden">
@@ -216,8 +262,69 @@ export default function ChartPanel({ panelId, onRemove, defaultParams = {} }) {
 
       {/* ── Chart ── */}
       <div className="flex-1 min-w-0 p-2">
-        <ForecastChart data={data} compact />
+        <ForecastChart data={data} compact signals={btData?.signals ?? null} />
       </div>
+
+      {/* ── Торговый анализ (показывается когда есть прогноз) ── */}
+      {data && (
+        <div className="border-t border-slate-700/60">
+
+          {/* Контролы бэктеста */}
+          <TradingControls
+            config={btConfig}
+            onChange={handleBtConfigChange}
+            onRun={runBacktest}
+            loading={btLoading}
+            disabled={!data}
+          />
+
+          {/* Ошибка бэктеста */}
+          {btError && (
+            <div className="mx-3 mb-2 px-3 py-2 rounded-lg bg-red-900/30 border border-red-700 text-xs text-red-300">
+              {btError}
+            </div>
+          )}
+
+          {/* Результаты бэктеста */}
+          {btData && (
+            <div>
+              {/* Переключатель секции */}
+              <button
+                onClick={() => setShowTrading(v => !v)}
+                className="w-full flex items-center justify-between px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 transition-colors"
+              >
+                <span className="flex items-center gap-1.5">
+                  <svg className={`w-3 h-3 transition-transform ${showTrading ? 'rotate-90' : ''}`}
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                  Торговые метрики — {btConfig.strategy}
+                </span>
+                <span className="font-mono text-slate-500">
+                  Sharpe {btData.backtest?.metrics?.sharpe?.toFixed(3) ?? '—'}
+                  {' · '}
+                  {btData.backtest?.metrics?.n_trades ?? 0} сделок
+                </span>
+              </button>
+
+              {showTrading && (
+                <div className="border-t border-slate-800">
+                  <TradingMetricsCards
+                    metrics={btData.backtest?.metrics}
+                    warning={btData.warning}
+                  />
+                  <EquityChart
+                    equityCurve={btData.backtest?.equity_curve}
+                    dates={btData.signals?.dates}
+                    initialCapital={btConfig.initial_capital}
+                  />
+                  <TradesTable trades={btData.backtest?.trades} />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
