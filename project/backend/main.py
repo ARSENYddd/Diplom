@@ -13,6 +13,8 @@ import asyncio
 from datetime import date, timedelta
 
 from services.data_service import get_price_series
+from services.signals import generate_signals, available_strategies
+from services.backtest import run_backtest
 from models.arima_model import run_arima
 from models.garch_model import run_garch
 from models.lstm_model import run_lstm
@@ -161,6 +163,79 @@ async def compare(
         {"name": "Ансамбль",         "key": "ensemble",      **BASELINE_METRICS["ensemble"]},
     ]
     return {"models": models_info}
+
+
+class BacktestRequest(BaseModel):
+    ticker: str = "^GSPC"
+    start: str = "2015-01-01"
+    end: str = "2024-01-01"
+    model: str = "arima_lstm"
+    window: int = 60
+    today: str = ""
+    strategy: str = "momentum"
+    commission: float = 0.001
+    initial_capital: float = 10000.0
+    slippage: float = 0.0005
+    reinvest: bool = True
+    risk_free_rate: float = 0.0
+
+
+@app.post("/api/backtest")
+async def backtest(req: BacktestRequest):
+    runner = MODEL_RUNNERS.get(req.model)
+    if runner is None:
+        raise HTTPException(status_code=400, detail=f"Unknown model: {req.model}. Available: {list(MODEL_RUNNERS.keys())}")
+
+    strats = available_strategies()
+    if req.strategy not in strats:
+        raise HTTPException(status_code=400, detail=f"Unknown strategy: {req.strategy}. Available: {strats}")
+
+    try:
+        n_future = _count_future_days(req.end, req.today)
+        n_future = min(n_future, 500)
+        data_end = min(req.end, req.today) if req.today else req.end
+
+        loop = asyncio.get_event_loop()
+
+        # Запуск прогноза
+        forecast_result = await loop.run_in_executor(
+            None,
+            lambda: runner(req.ticker, req.start, data_end, req.window, n_future),
+        )
+
+        # Генерация сигналов на тестовом периоде
+        signals_result = await loop.run_in_executor(
+            None,
+            lambda: generate_signals(forecast_result, strategy=req.strategy),
+        )
+
+        # Бэктест
+        bt_result = await loop.run_in_executor(
+            None,
+            lambda: run_backtest(
+                signals_result,
+                initial_capital=req.initial_capital,
+                commission=req.commission,
+                slippage=req.slippage,
+                reinvest=req.reinvest,
+                risk_free_rate=req.risk_free_rate,
+            ),
+        )
+
+        warning = None
+        if bt_result.get("trades") is not None and len(bt_result["trades"]) == 0:
+            warning = "Стратегия не сгенерировала ни одной сделки за выбранный период."
+
+        return {
+            "forecast": forecast_result,
+            "signals": signals_result,
+            "backtest": bt_result,
+            "warning": warning,
+        }
+
+    except Exception as e:
+        logging.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/debug/date")

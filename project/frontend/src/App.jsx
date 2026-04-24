@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import Header from './components/Header'
 import ChartPanel from './components/ChartPanel'
+import SignalsPage from './components/SignalsPage'
 
 let nextId = 2
 
 export default function App() {
+  const [page,   setPage]   = useState('forecast')  // 'forecast' | 'signals'
   const [panels, setPanels] = useState([
     { id: 1, defaults: { ticker: '^GSPC', model: 'arima_lstm', start: '2018-01-01', end: '2024-01-01' } },
   ])
@@ -34,8 +36,35 @@ export default function App() {
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
       <Header />
 
-      {/* Toolbar */}
-      <div className="px-4 py-2 border-b border-slate-800 flex items-center gap-3">
+      {/* Tab navigation */}
+      <div className="px-4 border-b border-slate-800 flex items-center gap-0">
+        {[
+          { key: 'forecast', label: 'Прогноз', icon: '📈' },
+          { key: 'signals',  label: 'Торговые сигналы', icon: '⚡' },
+        ].map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setPage(tab.key)}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+              page === tab.key
+                ? 'border-indigo-500 text-white'
+                : 'border-transparent text-slate-500 hover:text-slate-300'
+            }`}
+          >
+            {tab.icon} {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Страница «Торговые сигналы» */}
+      {page === 'signals' && (
+        <main className="flex-1">
+          <SignalsPage />
+        </main>
+      )}
+
+      {/* Toolbar (только для страницы прогноза) */}
+      {page === 'forecast' && <div className="px-4 py-2 border-b border-slate-800 flex items-center gap-3">
         <span className="text-xs text-slate-500">Панели:</span>
         <span className="text-xs font-medium text-white">{panels.length}</span>
         <div className="flex-1" />
@@ -84,19 +113,21 @@ export default function App() {
         </div>
       </div>
 
-      {/* Panels */}
-      <main className="flex-1 p-4">
-        <div className={`${gridClass} gap-4`}>
-          {panels.map(p => (
-            <ChartPanel
-              key={p.id}
-              panelId={p.id}
-              defaultParams={p.defaults}
-              onRemove={panels.length > 1 ? () => removePanel(p.id) : null}
-            />
-          ))}
-        </div>
-      </main>
+      {/* Panels (только для страницы прогноза) */}
+      {page === 'forecast' && (
+        <main className="flex-1 p-4">
+          <div className={`${gridClass} gap-4`}>
+            {panels.map(p => (
+              <ChartPanel
+                key={p.id}
+                panelId={p.id}
+                defaultParams={p.defaults}
+                onRemove={panels.length > 1 ? () => removePanel(p.id) : null}
+              />
+            ))}
+          </div>
+        </main>
+      )}
     </div>
   )
 }
