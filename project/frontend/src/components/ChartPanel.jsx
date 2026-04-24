@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import ForecastChart from './ForecastChart'
-import { fetchForecast } from '../api/client'
+import { fetchForecast, fetchBacktest } from '../api/client'
 
 const TICKER_GROUPS = [
   {
@@ -98,6 +98,9 @@ export default function ChartPanel({ panelId, onRemove, defaultParams = {} }) {
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState(null)
 
+  // Торговые сигналы — подгружаются автоматически после прогноза
+  const [signals, setSignals] = useState(null)
+
   const isFuture = new Date(end) > new Date()
   const modelColor = MODEL_COLORS[model] ?? '#94a3b8'
   const tickerLabel = TICKER_GROUPS.flatMap(g => g.tickers).find(t => t.value === ticker)?.label ?? ticker
@@ -105,10 +108,29 @@ export default function ChartPanel({ panelId, onRemove, defaultParams = {} }) {
   const run = useCallback(async () => {
     setLoading(true)
     setError(null)
+    setSignals(null)  // сбрасываем старые сигналы до прихода новых
     const today = new Date().toISOString().slice(0, 10)
     try {
       const result = await fetchForecast({ ticker, model, start, end, window: 60, today })
       setData(result)
+
+      // Автоматически запрашиваем сигналы после успешного прогноза
+      try {
+        const bt = await fetchBacktest({
+          ticker, model, start, end,
+          window: 60, today,
+          strategy: 'momentum',
+          commission: 0.001,
+          initial_capital: 10000,
+          slippage: 0.0005,
+          reinvest: true,
+          risk_free_rate: 0.0,
+        })
+        setSignals(bt.signals ?? null)
+      } catch {
+        // Бэктест упал (например GARCH без достаточных данных) — не ломаем прогноз
+        setSignals(null)
+      }
     } catch (e) {
       setError(e.response?.data?.detail || e.message || 'Ошибка запроса')
     } finally {
@@ -216,7 +238,7 @@ export default function ChartPanel({ panelId, onRemove, defaultParams = {} }) {
 
       {/* ── Chart ── */}
       <div className="flex-1 min-w-0 p-2">
-        <ForecastChart data={data} compact />
+        <ForecastChart data={data} compact signals={signals} />
       </div>
     </div>
   )

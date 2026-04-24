@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo, memo } from 'react'
 import {
   ComposedChart, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip, Legend, ResponsiveContainer, ReferenceLine,
+  Tooltip, Legend, ResponsiveContainer, ReferenceLine, ReferenceDot,
 } from 'recharts'
 import DrawingLayer from './DrawingLayer'
 import DrawingToolbar from './DrawingToolbar'
@@ -89,6 +89,7 @@ const ChartCore = memo(function ChartCore({
   hasFuture, futureSplitDate,
   scenarios, hiddenScenarios, showScenarios,
   compact,
+  signalDots,  // массив { date, price, type } — только BUY/SELL в видимом диапазоне
 }) {
   return (
     <ResponsiveContainer width="100%" height={compact ? 280 : 380}>
@@ -141,18 +142,38 @@ const ChartCore = memo(function ChartCore({
               activeDot={{ r: 4 }} connectNulls={false} isAnimationActive={false} />
           )
         )}
+
+        {/* Маркеры торговых сигналов BUY / SELL */}
+        {signalDots?.map((dot, i) => (
+          <ReferenceDot
+            key={i}
+            x={dot.date}
+            y={dot.price}
+            r={6}
+            fill={dot.type === 'BUY' ? '#22c55e' : '#ef4444'}
+            stroke={dot.type === 'BUY' ? '#16a34a' : '#dc2626'}
+            strokeWidth={2}
+            label={{
+              value: dot.type === 'BUY' ? '▲' : '▼',
+              position: dot.type === 'BUY' ? 'top' : 'bottom',
+              fill: dot.type === 'BUY' ? '#22c55e' : '#ef4444',
+              fontSize: 10,
+            }}
+          />
+        ))}
       </ComposedChart>
     </ResponsiveContainer>
   )
 })
 
 // ─── Main component ──────────────────────────────────────────────────────────
-export default function ForecastChart({ data, compact = false }) {
+export default function ForecastChart({ data, compact = false, signals = null }) {
   // ── All hooks must be called unconditionally (Rules of Hooks) ──────────────
   const [drawTool,        setDrawTool]        = useState('cursor')
   const [drawings,        setDrawings]        = useState([])
   const [hiddenScenarios, setHiddenScenarios] = useState(new Set())
   const [showScenarios,   setShowScenarios]   = useState(true)
+  const [showSignals,     setShowSignals]     = useState(true)  // toggle сигналов BUY/SELL
   const [viewStart,       setViewStart]       = useState(0)
   const [viewEnd,         setViewEnd]         = useState(null) // null = show all
 
@@ -252,6 +273,31 @@ export default function ForecastChart({ data, compact = false }) {
     const every = Math.max(1, Math.floor(visibleData.length / 8))
     return visibleData.filter((_, i) => i % every === 0).map(d => d.date)
   }, [visibleData])
+
+  // Точки сигналов BUY/SELL — только видимый диапазон, только если toggle включён
+  const signalDots = useMemo(() => {
+    if (!signals?.dates?.length || !showSignals) return []
+    // Строим Map { date → { price, type } } только для BUY/SELL
+    const sigMap = new Map()
+    signals.dates.forEach((d, i) => {
+      const type = signals.signals?.[i]
+      if (type === 'BUY' || type === 'SELL') {
+        sigMap.set(d, { price: signals.actual?.[i] ?? null, type })
+      }
+    })
+    if (!sigMap.size) return []
+    // Фильтруем по visibleData — автоматически учитывает vsIdx/veIdx
+    return visibleData
+      .filter(row => sigMap.has(row.date))
+      .map(row => {
+        const sig = sigMap.get(row.date)
+        return {
+          date:  row.date,
+          price: sig.price ?? row['Реальные'],  // fallback на реальную цену из chartData
+          type:  sig.type,
+        }
+      })
+  }, [signals, showSignals, visibleData])
 
   // Wheel: vertical = zoom, horizontal (trackpad swipe) = pan
   useEffect(() => {
@@ -403,37 +449,60 @@ export default function ForecastChart({ data, compact = false }) {
         </div>
       )}
 
-      {/* Scenario toggles */}
-      {hasFuture && scenarios.length > 0 && (
+      {/* Scenario toggles + signals toggle */}
+      {(hasFuture && scenarios.length > 0 || signals) && (
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-slate-500">Сценарии:</span>
-          <button
-            onClick={() => setShowScenarios(v => !v)}
-            className={`text-xs px-2 py-0.5 rounded border transition-all ${
-              showScenarios
-                ? 'bg-indigo-600/30 border-indigo-500 text-indigo-300'
-                : 'border-slate-600 text-slate-500 hover:border-slate-500'
-            }`}
-          >
-            {showScenarios ? 'Скрыть все' : 'Показать все'}
-          </button>
-          {showScenarios && scenarios.map(sc => {
-            const hidden = hiddenScenarios.has(sc.name)
-            const meta   = SCENARIO_LABELS[sc.name] ?? {}
-            return (
-              <button key={sc.name} onClick={() => toggleScenario(sc.name)}
-                title={meta.desc}
-                className={`text-xs px-2 py-0.5 rounded border transition-all flex items-center gap-1 ${
-                  hidden ? 'border-slate-700 text-slate-600' : 'border-slate-600 text-slate-300 hover:border-slate-400'
+
+          {/* Сценарии */}
+          {hasFuture && scenarios.length > 0 && (
+            <>
+              <span className="text-xs text-slate-500">Сценарии:</span>
+              <button
+                onClick={() => setShowScenarios(v => !v)}
+                className={`text-xs px-2 py-0.5 rounded border transition-all ${
+                  showScenarios
+                    ? 'bg-indigo-600/30 border-indigo-500 text-indigo-300'
+                    : 'border-slate-600 text-slate-500 hover:border-slate-500'
                 }`}
-                style={{ borderColor: hidden ? undefined : sc.color + '88' }}
               >
-                <span className="w-2 h-2 rounded-full flex-shrink-0"
-                  style={{ background: hidden ? '#475569' : sc.color }} />
-                {meta.emoji} {sc.name}
+                {showScenarios ? 'Скрыть все' : 'Показать все'}
               </button>
-            )
-          })}
+              {showScenarios && scenarios.map(sc => {
+                const hidden = hiddenScenarios.has(sc.name)
+                const meta   = SCENARIO_LABELS[sc.name] ?? {}
+                return (
+                  <button key={sc.name} onClick={() => toggleScenario(sc.name)}
+                    title={meta.desc}
+                    className={`text-xs px-2 py-0.5 rounded border transition-all flex items-center gap-1 ${
+                      hidden ? 'border-slate-700 text-slate-600' : 'border-slate-600 text-slate-300 hover:border-slate-400'
+                    }`}
+                    style={{ borderColor: hidden ? undefined : sc.color + '88' }}
+                  >
+                    <span className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ background: hidden ? '#475569' : sc.color }} />
+                    {meta.emoji} {sc.name}
+                  </button>
+                )
+              })}
+              {/* Разделитель если есть и сценарии и сигналы */}
+              {signals && <span className="text-slate-700 text-xs">|</span>}
+            </>
+          )}
+
+          {/* Кнопка сигналов BUY/SELL */}
+          {signals && (
+            <button
+              onClick={() => setShowSignals(v => !v)}
+              className={`text-xs px-2 py-0.5 rounded border transition-all flex items-center gap-1.5 ${
+                showSignals
+                  ? 'bg-emerald-900/30 border-emerald-700/60 text-emerald-300'
+                  : 'border-slate-600 text-slate-500 hover:border-slate-500'
+              }`}
+            >
+              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${showSignals ? 'bg-emerald-400' : 'bg-slate-600'}`} />
+              Сигналы
+            </button>
+          )}
         </div>
       )}
 
@@ -473,6 +542,7 @@ export default function ForecastChart({ data, compact = false }) {
             hiddenScenarios={hiddenScenarios}
             showScenarios={showScenarios}
             compact={compact}
+            signalDots={signalDots}
           />
           <DrawingLayer
             tool={drawTool} drawings={drawings}
@@ -501,6 +571,13 @@ export default function ForecastChart({ data, compact = false }) {
             <span className="text-green-400">╌</span><span className="text-emerald-400">╌</span>
             {' '}Сценарии: медвежий → бычий
           </span>
+        )}
+        {/* Легенда сигналов — только если бэктест вернул данные */}
+        {signals && showSignals && (
+          <>
+            <span><span className="text-green-400">●</span> BUY сигнал</span>
+            <span><span className="text-red-400">●</span> SELL сигнал</span>
+          </>
         )}
         <span className="ml-auto text-slate-600">↑ Инструменты рисования</span>
       </div>
