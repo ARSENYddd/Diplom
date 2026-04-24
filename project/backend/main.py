@@ -227,12 +227,21 @@ async def backtest(req: BacktestRequest):
             warning = "Стратегия не сгенерировала ни одной сделки за выбранный период."
 
         # Сигналы для future-периода (если end > today)
+        # Для будущего используем threshold — он работает без реальных цен.
+        # mean_reversion требует actual, momentum нуждается в длинной истории.
         future_signals = None
         if n_future > 0:
+            future_strategy = req.strategy if req.strategy != "mean_reversion" else "threshold"
             future_signals = await loop.run_in_executor(
                 None,
-                lambda: generate_future_signals(forecast_result, strategy=req.strategy),
+                lambda: generate_future_signals(
+                    forecast_result,
+                    strategy=future_strategy,
+                    threshold_pct=0.001,   # порог 0.1% — чувствительнее чем для бэктеста
+                ),
             )
+            if future_signals:
+                future_signals["strategy_used"] = future_strategy
 
         return {
             "forecast":       forecast_result,

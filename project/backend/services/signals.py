@@ -393,7 +393,9 @@ def generate_future_signals(
                     signals.append("HOLD")
 
         elif strategy == "momentum":
-            signals.append(_strategy_momentum(i, predicted))
+            # Для future используем меньший lookback (3) и min_agree (2)
+            # т.к. прогнозный ряд короче и глаже чем исторический
+            signals.append(_strategy_momentum(i, predicted, lookback=3, min_agree=2))
 
         else:
             # mean_reversion требует actual — в future только HOLD

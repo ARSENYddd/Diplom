@@ -451,9 +451,9 @@ export default function SignalsPage() {
           )}
 
           {/* ── БЛОК БУДУЩИХ СИГНАЛОВ (появляется только при isFuture) ── */}
-          {futureSignals?.signals?.length > 0 && (
+          {result.future_signals !== undefined && (
             <div className="bg-slate-900 border border-emerald-800/50 rounded-xl p-4 space-y-3">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <h2 className="text-sm font-semibold text-white flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
                   Прогнозные сигналы
@@ -461,11 +461,22 @@ export default function SignalsPage() {
                     (будущий период — без реальных цен)
                   </span>
                 </h2>
-                <SignalSummary signals={futureSignals} />
+                <div className="flex items-center gap-2">
+                  {/* Какая стратегия применена */}
+                  {futureSignals?.strategy_used && futureSignals.strategy_used !== strategy && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-900/30 border border-amber-700/50 text-amber-400">
+                      ⚠ mean_reversion → threshold для будущего
+                    </span>
+                  )}
+                  <SignalSummary signals={futureSignals} />
+                </div>
               </div>
 
               {/* Таблица будущих сигналов */}
-              <FutureSignalsTable signals={futureSignals} />
+              {futureSignals?.signals?.length > 0
+                ? <FutureSignalsTable signals={futureSignals} />
+                : <p className="text-xs text-slate-500">Нет прогнозных сигналов — попробуйте другую модель или увеличьте период</p>
+              }
             </div>
           )}
 
