@@ -13,7 +13,7 @@ import asyncio
 from datetime import date, timedelta
 
 from services.data_service import get_price_series
-from services.signals import generate_signals, available_strategies
+from services.signals import generate_signals, generate_future_signals, available_strategies
 from services.backtest import run_backtest
 from models.arima_model import run_arima
 from models.garch_model import run_garch
@@ -226,11 +226,20 @@ async def backtest(req: BacktestRequest):
         if bt_result.get("trades") is not None and len(bt_result["trades"]) == 0:
             warning = "Стратегия не сгенерировала ни одной сделки за выбранный период."
 
+        # Сигналы для future-периода (если end > today)
+        future_signals = None
+        if n_future > 0:
+            future_signals = await loop.run_in_executor(
+                None,
+                lambda: generate_future_signals(forecast_result, strategy=req.strategy),
+            )
+
         return {
-            "forecast": forecast_result,
-            "signals": signals_result,
-            "backtest": bt_result,
-            "warning": warning,
+            "forecast":       forecast_result,
+            "signals":        signals_result,
+            "backtest":       bt_result,
+            "future_signals": future_signals,
+            "warning":        warning,
         }
 
     except Exception as e:
