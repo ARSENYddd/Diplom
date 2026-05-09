@@ -21,7 +21,96 @@ _MOEX_HISTORY_URL = (
     "https://iss.moex.com/iss/history/engines/stock/markets/shares"
     "/boards/TQBR/securities/{symbol}.json"
 )
-_MOEX_PAGE_SIZE = 100   # ISS returns max 100 rows per request
+_MOEX_CANDLES_URL = (
+    "https://iss.moex.com/iss/engines/stock/markets/shares"
+    "/boards/TQBR/securities/{symbol}/candles.json"
+)
+_MOEX_PAGE_SIZE        = 100   # ISS history: max 100 rows per request
+_MOEX_CANDLES_PAGE     = 500   # ISS candles: max 500 rows per request
+
+# Mapping from our interval key → MOEX ISS candle interval code
+_MOEX_CANDLE_INTERVAL = {
+    "1h":  60,
+    "6h":  60,   # fetch 1h, resample → 6h
+    "12h": 60,   # fetch 1h, resample → 12h
+    "1wk": 7,
+    "1mo": 31,
+}
+
+
+def _load_moex_candles(ticker_me: str, start: str, end: str, interval: str) -> pd.DataFrame:
+    """
+    Fetch OHLCV candles from MOEX ISS Candles API.
+    Supports hourly (interval 60), weekly (7), monthly (31).
+    Handles pagination automatically (ISS caps at 500 rows / request).
+    """
+    symbol      = ticker_me.upper().replace(".ME", "")
+    moex_iv     = _MOEX_CANDLE_INTERVAL[interval]
+    url         = _MOEX_CANDLES_URL.format(symbol=symbol)
+    _timeout    = httpx.Timeout(60.0, connect=15.0)
+
+    all_rows: list = []
+    offset = 0
+
+    with httpx.Client(timeout=_timeout, verify=True) as client:
+        while True:
+            params = {
+                "from":        start,
+                "till":        end,
+                "interval":    moex_iv,
+                "start":       offset,
+                "iss.meta":    "off",
+                "iss.only":    "candles",
+            }
+            resp = client.get(url, params=params)
+            resp.raise_for_status()
+            js = resp.json()
+
+            candles = js.get("candles", {})
+            columns = candles.get("columns", [])
+            rows    = candles.get("data",    [])
+
+            if not rows:
+                break
+
+            all_rows.extend(rows)
+
+            if len(rows) < _MOEX_CANDLES_PAGE:
+                break      # last page
+            offset += len(rows)
+
+    if not all_rows:
+        raise ValueError(
+            f"Нет данных MOEX Candles для {symbol} (interval={moex_iv}) "
+            f"за период {start}–{end}. "
+            "Для внутридневных данных доступна история ~3 года."
+        )
+
+    col_idx   = {c: i for i, c in enumerate(columns)}
+    close_col = col_idx["close"]
+    begin_col = col_idx["begin"]   # candle open time, e.g. "2024-01-02 10:00:00"
+
+    records = [
+        (r[begin_col], r[close_col])
+        for r in all_rows
+        if r[close_col] is not None
+    ]
+
+    df = pd.DataFrame(records, columns=["Date", "Close"])
+    df["Date"]  = pd.to_datetime(df["Date"])
+    df["Close"] = df["Close"].astype(float)
+    df = df.set_index("Date").sort_index().dropna()
+
+    if df.empty:
+        raise ValueError(f"MOEX Candles вернул пустые данные для {symbol}.")
+
+    # Resample 1h → 6h or 12h if needed
+    if interval == "6h":
+        df = df.resample("6h").last().dropna()
+    elif interval == "12h":
+        df = df.resample("12h").last().dropna()
+
+    return df
 
 
 def _load_moex(ticker_me: str, start: str, end: str) -> pd.DataFrame:
@@ -149,36 +238,31 @@ def load_data(ticker: str, start: str, end: str, interval: str = "1d") -> pd.Dat
         _memory_cache[key] = df
         return df
 
-    # --- MOEX: only daily data is available ---
+    # --- MOEX ---
     if _is_moex_ticker(ticker):
-        if interval in _INTRADAY_INTERVALS:
-            raise ValueError(
-                f"Внутридневные данные недоступны для MOEX-тикеров ({ticker}). "
-                "Выберите таймфрейм 1д, 1н или 1мес."
-            )
-        try:
-            df = _load_moex(ticker, start, end)
-        except Exception as moex_err:
-            import logging
-            logging.warning(
-                f"MOEX ISS недоступен для {ticker} ({moex_err}), "
-                "переключаюсь на yfinance..."
-            )
-            df = yf.download(ticker, start=start, end=end, progress=False, auto_adjust=True)
-            if df.empty:
-                raise ValueError(
-                    f"Нет данных для {ticker}: MOEX ISS timeout, yfinance тоже вернул пустой ответ."
-                ) from moex_err
-            if isinstance(df.columns, pd.MultiIndex):
-                df.columns = df.columns.droplevel(1)
-            df = df[["Close"]].copy()
-            df.index = pd.to_datetime(df.index)
-            df = df.dropna()
-        # Apply weekly/monthly resampling if requested
-        if interval == "1wk":
-            df = df.resample("W").last().dropna()
-        elif interval == "1mo":
-            df = df.resample("ME").last().dropna()
+        if interval in _INTRADAY_INTERVALS or interval in ("1wk", "1mo"):
+            # Use MOEX ISS Candles API for intraday + weekly + monthly
+            df = _load_moex_candles(ticker, start, end, interval)
+        else:
+            # Daily: use MOEX ISS History API (more complete historical depth)
+            try:
+                df = _load_moex(ticker, start, end)
+            except Exception as moex_err:
+                import logging
+                logging.warning(
+                    f"MOEX ISS недоступен для {ticker} ({moex_err}), "
+                    "переключаюсь на yfinance..."
+                )
+                df = yf.download(ticker, start=start, end=end, progress=False, auto_adjust=True)
+                if df.empty:
+                    raise ValueError(
+                        f"Нет данных для {ticker}: MOEX ISS timeout, yfinance тоже вернул пустой ответ."
+                    ) from moex_err
+                if isinstance(df.columns, pd.MultiIndex):
+                    df.columns = df.columns.droplevel(1)
+                df = df[["Close"]].copy()
+                df.index = pd.to_datetime(df.index)
+                df = df.dropna()
     else:
         yf_interval = _YF_INTERVAL_MAP.get(interval, "1d")
 

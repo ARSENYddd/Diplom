@@ -183,8 +183,6 @@ export default function ChartPanel({ panelId, onRemove, defaultParams = {} }) {
   const [signals, setSignals] = useState(null)
 
   const tf = TIMEFRAMES.find(t => t.key === interval) ?? TIMEFRAMES[3]
-  const isMoex = ticker.toUpperCase().endsWith('.ME')
-  const moexIntradayWarning = isMoex && tf.intraday
 
   // When switching to intraday — auto-adjust start to within allowed range
   useEffect(() => {
@@ -202,10 +200,6 @@ export default function ChartPanel({ panelId, onRemove, defaultParams = {} }) {
   const tickerLabel = TICKER_GROUPS.flatMap(g => g.tickers).find(t => t.value === ticker)?.label ?? ticker
 
   const run = useCallback(async () => {
-    if (moexIntradayWarning) {
-      setError('Внутридневные данные недоступны для MOEX-тикеров. Выберите 1д, 1н или 1мес.')
-      return
-    }
     setLoading(true)
     setError(null)
     setSignals(null)  // сбрасываем старые сигналы до прихода новых
@@ -236,7 +230,7 @@ export default function ChartPanel({ panelId, onRemove, defaultParams = {} }) {
     } finally {
       setLoading(false)
     }
-  }, [ticker, model, start, end, interval, moexIntradayWarning])
+  }, [ticker, model, start, end, interval])
 
   return (
     <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl flex flex-col overflow-hidden">
@@ -368,13 +362,6 @@ export default function ChartPanel({ panelId, onRemove, defaultParams = {} }) {
           </button>
         )}
       </div>
-
-      {/* ── MOEX intraday warning ── */}
-      {moexIntradayWarning && !error && (
-        <div className="mx-3 mt-3 px-3 py-2 rounded-lg bg-amber-900/20 border border-amber-700/50 text-xs text-amber-300">
-          ⚠️ MOEX-тикеры не поддерживают внутридневные данные. Выберите таймфрейм <strong>1д</strong>, <strong>1н</strong> или <strong>1мес</strong>.
-        </div>
-      )}
 
       {/* ── Error ── */}
       {error && (
