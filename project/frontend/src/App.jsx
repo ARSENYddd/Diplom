@@ -2,11 +2,12 @@ import { useState } from 'react'
 import Header from './components/Header'
 import ChartPanel from './components/ChartPanel'
 import SignalsPage from './components/SignalsPage'
+import LandingPage from './components/LandingPage'
 
 let nextId = 2
 
 export default function App() {
-  const [page,   setPage]   = useState('forecast')  // 'forecast' | 'signals'
+  const [page,   setPage]   = useState('landing')  // 'landing' | 'forecast' | 'signals'
   const [panels, setPanels] = useState([
     { id: 1, defaults: { ticker: '^GSPC', model: 'arima_lstm', start: '2018-01-01', end: '2024-01-01' } },
   ])
@@ -31,6 +32,10 @@ export default function App() {
     layout === 'triple' ? 'grid grid-cols-2 gap-4' :
     layout === 'double' ? 'grid grid-cols-2 gap-4' :
     'flex flex-col'
+
+  if (page === 'landing') {
+    return <LandingPage onLaunch={() => setPage('forecast')} />
+  }
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
