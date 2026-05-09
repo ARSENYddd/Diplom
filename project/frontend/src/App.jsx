@@ -7,11 +7,16 @@ import LandingPage from './components/LandingPage'
 let nextId = 2
 
 export default function App() {
-  const [page,   setPage]   = useState('landing')  // 'landing' | 'forecast' | 'signals'
+  const [page,   setPage]   = useState('landing')
   const [panels, setPanels] = useState([
     { id: 1, defaults: { ticker: '^GSPC', model: 'arima_lstm', start: '2018-01-01', end: '2024-01-01' } },
   ])
-  const [layout, setLayout] = useState('single') // 'single' | 'double' | 'triple'
+  const [layout, setLayout] = useState('single')
+
+  // Show landing page
+  if (page === 'landing') {
+    return <LandingPage onLaunch={() => setPage('forecast')} />
+  }
 
   const addPanel = (defaults = {}) => {
     setPanels(prev => [...prev, { id: nextId++, defaults }])
@@ -33,51 +38,19 @@ export default function App() {
     layout === 'double' ? 'grid grid-cols-2 gap-4' :
     'flex flex-col'
 
-  if (page === 'landing') {
-    return <LandingPage onLaunch={() => setPage('forecast')} />
-  }
-
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
-      <Header />
+    <div className="min-h-screen flex flex-col" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
+      <Header page={page} onNavigate={setPage} />
 
-      {/* Tab navigation */}
-      <div className="px-4 border-b border-slate-800 flex items-center gap-0">
-        {[
-          { key: 'forecast', label: 'Прогноз', icon: '📈' },
-          { key: 'signals',  label: 'Торговые сигналы', icon: '⚡' },
-        ].map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setPage(tab.key)}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-              page === tab.key
-                ? 'border-indigo-500 text-white'
-                : 'border-transparent text-slate-500 hover:text-slate-300'
-            }`}
-          >
-            {tab.icon} {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Страница «Торговые сигналы» */}
-      {page === 'signals' && (
-        <main className="flex-1">
-          <SignalsPage />
-        </main>
-      )}
-
-      {/* Toolbar (только для страницы прогноза) */}
+      {/* Forecast toolbar */}
       {page === 'forecast' && (
-        <div className="px-4 py-2 border-b border-slate-800 flex items-center gap-3">
-          <span className="text-xs text-slate-500">Панели:</span>
-          <span className="text-xs font-medium text-white">{panels.length}</span>
+        <div className="px-4 py-2 border-b border-[var(--border)] flex items-center gap-3">
+          <span className="text-[12px] text-muted">Панели:</span>
+          <span className="text-[12px] font-medium text-white">{panels.length}</span>
           <div className="flex-1" />
 
-          {/* Layout toggle */}
           {panels.length > 1 && (
-            <div className="flex items-center gap-1 bg-slate-800 rounded-lg p-1 border border-slate-700">
+            <div className="flex items-center gap-1 bg-[var(--surface)] rounded-lg p-1 border border-[var(--border)]">
               {[
                 { key: 'double', icon: (
                   <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor">
@@ -91,16 +64,18 @@ export default function App() {
                 ), title: 'Одна колонка' },
               ].map(({ key, icon, title }) => (
                 <button key={key} title={title} onClick={() => setLayout(key)}
-                  className={`p-1.5 rounded transition-all ${layout === key ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'}`}>
+                  className={`p-1.5 rounded transition-all
+                    ${layout === key
+                      ? 'bg-amber-400/20 text-amber-400'
+                      : 'text-muted hover:text-warm'}`}>
                   {icon}
                 </button>
               ))}
             </div>
           )}
 
-          {/* Add panel presets */}
           <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-500">Добавить график:</span>
+            <span className="text-[12px] text-muted">Добавить график:</span>
             {[
               { label: 'S&P 500',  defaults: { ticker: '^GSPC',   model: 'arima_lstm',    start: '2018-01-01', end: '2024-01-01' } },
               { label: 'SBER.ME',  defaults: { ticker: 'SBER.ME', model: 'arima_lstm',    start: '2018-01-01', end: '2024-01-01' } },
@@ -108,11 +83,9 @@ export default function App() {
               { label: 'Brent',    defaults: { ticker: 'BZ=F',   model: 'garch',          start: '2018-01-01', end: '2024-01-01' } },
               { label: 'Пустой',   defaults: {} },
             ].map(({ label, defaults }) => (
-              <button
-                key={label}
-                onClick={() => addPanel(defaults)}
-                className="text-xs px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:border-indigo-500 hover:text-white transition-all"
-              >
+              <button key={label} onClick={() => addPanel(defaults)}
+                className="text-[12px] px-2.5 py-1 rounded-lg bg-[var(--surface)] border border-[var(--border)]
+                           text-muted hover:border-amber-400/50 hover:text-warm transition-all">
                 + {label}
               </button>
             ))}
@@ -120,17 +93,19 @@ export default function App() {
         </div>
       )}
 
-      {/* Panels (только для страницы прогноза) */}
+      {/* Signals page */}
+      {page === 'signals' && (
+        <main className="flex-1"><SignalsPage /></main>
+      )}
+
+      {/* Forecast panels */}
       {page === 'forecast' && (
         <main className="flex-1 p-4">
           <div className={`${gridClass} gap-4`}>
             {panels.map(p => (
-              <ChartPanel
-                key={p.id}
-                panelId={p.id}
+              <ChartPanel key={p.id} panelId={p.id}
                 defaultParams={p.defaults}
-                onRemove={panels.length > 1 ? () => removePanel(p.id) : null}
-              />
+                onRemove={panels.length > 1 ? () => removePanel(p.id) : null} />
             ))}
           </div>
         </main>

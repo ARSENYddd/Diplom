@@ -86,7 +86,7 @@ const MODEL_COLORS = {
   ensemble:      '#4ade80',
 }
 
-const sel = 'bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors px-2 py-1.5'
+const sel = 'bg-[var(--surface)] border border-[var(--border)] rounded-lg text-sm text-warm focus:outline-none focus:border-amber-400 transition-colors px-2 py-1.5'
 
 export default function ChartPanel({ panelId, onRemove, defaultParams = {} }) {
   const [ticker,  setTicker]  = useState(defaultParams.ticker  ?? '^GSPC')
@@ -195,7 +195,7 @@ export default function ChartPanel({ panelId, onRemove, defaultParams = {} }) {
         <button
           onClick={run}
           disabled={loading}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-medium transition-colors flex-shrink-0"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-400 hover:bg-amber-300 disabled:opacity-50 text-black text-xs font-medium transition-colors flex-shrink-0"
         >
           {loading ? (
             <>
