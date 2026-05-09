@@ -3,19 +3,34 @@ import Header from './components/Header'
 import ChartPanel from './components/ChartPanel'
 import SignalsPage from './components/SignalsPage'
 import LandingPage from './components/LandingPage'
+import PricingModal from './components/PricingModal'
+import { useRouter } from './hooks/useRouter'
 
 let nextId = 2
 
 export default function App() {
-  const [page,   setPage]   = useState('landing')
+  const { path, navigate } = useRouter()
+  const [pricingOpen, setPricingOpen] = useState(false)
   const [panels, setPanels] = useState([
     { id: 1, defaults: { ticker: '^GSPC', model: 'arima_lstm', start: '2018-01-01', end: '2024-01-01' } },
   ])
   const [layout, setLayout] = useState('single')
 
   // Show landing page
-  if (page === 'landing') {
-    return <LandingPage onLaunch={() => setPage('forecast')} />
+  if (path === '/') {
+    return (
+      <>
+        <LandingPage
+          onOpenPricing={() => setPricingOpen(true)}
+          onNavigate={navigate}
+        />
+        <PricingModal
+          open={pricingOpen}
+          onClose={() => setPricingOpen(false)}
+          onStart={() => navigate('/forecast')}
+        />
+      </>
+    )
   }
 
   const addPanel = (defaults = {}) => {
@@ -40,10 +55,10 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
-      <Header page={page} onNavigate={setPage} />
+      <Header page={path} onNavigate={navigate} />
 
       {/* Forecast toolbar */}
-      {page === 'forecast' && (
+      {path === '/forecast' && (
         <div className="px-4 py-2 border-b border-[var(--border)] flex items-center gap-3">
           <span className="text-[12px] text-muted">Панели:</span>
           <span className="text-[12px] font-medium text-white">{panels.length}</span>
@@ -94,12 +109,12 @@ export default function App() {
       )}
 
       {/* Signals page */}
-      {page === 'signals' && (
+      {path === '/signals' && (
         <main className="flex-1"><SignalsPage /></main>
       )}
 
       {/* Forecast panels */}
-      {page === 'forecast' && (
+      {path === '/forecast' && (
         <main className="flex-1 p-4">
           <div className={gridClass}>
             {panels.map(p => (

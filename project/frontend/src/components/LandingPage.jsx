@@ -16,11 +16,29 @@ const TICKERS = [
 ]
 
 // ── Nav ───────────────────────────────────────────────────────────────────────
-function Nav({ onLaunch }) {
+const NAV_LINKS = [
+  { label: 'Прогноз', href: '/forecast' },
+  { label: 'Сигналы', href: '/signals' },
+  { label: 'Модели',  href: '#models' },
+  { label: 'Цены',    href: '#pricing' },
+]
+
+function Nav({ onOpenPricing, onNavigate }) {
+  const handleLink = (e, href) => {
+    if (href.startsWith('/')) {
+      e.preventDefault()
+      onNavigate(href)
+    }
+    // anchor links (#models, #pricing) behave normally
+  }
+
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 flex items-center gap-6 px-12 h-[60px]
                     bg-[#0d0b08]/85 border-b border-[var(--border)] backdrop-blur-xl">
-      <a href="#" className="flex items-center gap-2.5 text-white font-bold text-[17px] tracking-tight no-underline">
+      <button
+        onClick={() => onNavigate('/')}
+        className="flex items-center gap-2.5 text-white font-bold text-[17px] tracking-tight"
+      >
         <div className="w-[30px] h-[30px] rounded-[7px] flex items-center justify-center
                         text-black font-extrabold text-[14px]
                         bg-gradient-to-br from-amber-500 to-amber-400
@@ -28,15 +46,19 @@ function Nav({ onLaunch }) {
           α
         </div>
         AlphaSignal
-      </a>
+      </button>
 
       <div className="flex items-center gap-1 ml-6">
-        {['Прогноз', 'Сигналы', 'Модели', 'Цены'].map(l => (
-          <span key={l}
-            className="text-[13px] text-muted px-3 py-1.5 rounded-md cursor-pointer
-                       hover:text-warm transition-colors">
-            {l}
-          </span>
+        {NAV_LINKS.map(({ label, href }) => (
+          <a
+            key={label}
+            href={href}
+            onClick={e => handleLink(e, href)}
+            className="text-[13px] text-muted px-3 py-1.5 rounded-md
+                       hover:text-warm transition-colors no-underline"
+          >
+            {label}
+          </a>
         ))}
       </div>
 
@@ -44,7 +66,7 @@ function Nav({ onLaunch }) {
         <span className="text-[13px] text-muted px-3 cursor-pointer hover:text-warm transition-colors">
           Войти
         </span>
-        <button onClick={onLaunch}
+        <button onClick={onOpenPricing}
           className="text-[13px] font-semibold text-black bg-amber-400
                      px-4 py-1.5 rounded-lg cursor-pointer
                      hover:bg-amber-300 hover:scale-[1.02] transition-all">
@@ -76,7 +98,7 @@ function TickerTape() {
 }
 
 // ── Hero ──────────────────────────────────────────────────────────────────────
-function Hero({ onLaunch }) {
+function Hero({ onOpenPricing }) {
   return (
     <section className="relative min-h-screen flex flex-col items-center justify-center
                         px-12 pt-[120px] pb-20 text-center overflow-hidden">
@@ -125,7 +147,7 @@ function Hero({ onLaunch }) {
       {/* CTAs */}
       <div className="flex items-center gap-3.5 mb-16
                       animate-fade-up [animation-delay:300ms]">
-        <button onClick={onLaunch}
+        <button onClick={onOpenPricing}
           className="inline-flex items-center gap-2 text-[15px] font-bold text-black
                      bg-gradient-to-br from-amber-500 to-amber-400
                      px-7 py-3.5 rounded-xl cursor-pointer
@@ -619,7 +641,7 @@ function Testimonials() {
 }
 
 // ── CTABlock ──────────────────────────────────────────────────────────────────
-function CTABlock({ onLaunch }) {
+function CTABlock({ onOpenPricing }) {
   const ref = useReveal()
   return (
     <div ref={ref}
@@ -642,7 +664,7 @@ function CTABlock({ onLaunch }) {
           </span>
         ))}
       </div>
-      <button onClick={onLaunch}
+      <button onClick={onOpenPricing}
         className="inline-flex items-center gap-2 text-[16px] font-bold text-black
                    bg-gradient-to-br from-amber-500 to-amber-400
                    px-9 py-4 rounded-xl cursor-pointer relative
@@ -708,14 +730,14 @@ function Footer() {
   )
 }
 
-export default function LandingPage({ onLaunch }) {
+export default function LandingPage({ onOpenPricing, onNavigate }) {
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
-      <Nav onLaunch={onLaunch} />
+      <Nav onOpenPricing={onOpenPricing} onNavigate={onNavigate} />
       <div style={{ marginTop: '60px' }}>
         <TickerTape />
       </div>
-      <Hero onLaunch={onLaunch} />
+      <Hero onOpenPricing={onOpenPricing} />
       <StatsBar />
       <FeatureRow
         eyebrow="Прогнозирование"
@@ -759,7 +781,7 @@ export default function LandingPage({ onLaunch }) {
       />
       <ModelsSection />
       <Testimonials />
-      <CTABlock onLaunch={onLaunch} />
+      <CTABlock onOpenPricing={onOpenPricing} />
       <Footer />
     </div>
   )

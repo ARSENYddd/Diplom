@@ -17,8 +17,8 @@ export default function Header({ page, onNavigate }) {
       {/* Nav tabs */}
       <div className="flex items-center gap-0 ml-4 border-l border-[var(--border)] pl-4">
         {[
-          { key: 'forecast', label: 'Прогноз' },
-          { key: 'signals',  label: 'Сигналы' },
+          { key: '/forecast', label: 'Прогноз' },
+          { key: '/signals',  label: 'Сигналы' },
         ].map(tab => (
           <button key={tab.key} onClick={() => onNavigate(tab.key)}
             className={`px-4 py-1.5 text-[13px] font-medium rounded-lg transition-all
