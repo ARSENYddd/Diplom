@@ -213,11 +213,15 @@ export default function ForecastChart({ data, compact = false, signals = null })
     return data.dates.map((d, i) => {
       const actual    = data.actual?.[i]    ?? null
       const predicted = data.predicted?.[i] ?? null
+
+      // "Прогноз" extends ONE point into the future zone so it bridges
+      // the gap between backtest line and "Базовый" future line.
+      const isFutureZone = hasFuture && i >= futureFrom
       const row = {
         date:     d,
         Реальные: actual,
-        Прогноз:  (i >= testFrom && (!hasFuture || i < futureFrom)) ? predicted : null,
-        Базовый:  (hasFuture && i >= futureFrom) ? predicted : null,
+        Прогноз:  (i >= testFrom && (!hasFuture || i <= futureFrom)) ? predicted : null,
+        Базовый:  isFutureZone ? predicted : null,
       }
       if (hasFuture && scenarios.length > 0) {
         scenarios.forEach(sc => {

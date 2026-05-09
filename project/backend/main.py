@@ -126,20 +126,33 @@ async def forecast(req: ForecastRequest):
         raise HTTPException(status_code=400, detail=f"Unknown model: {req.model}")
     try:
         n_future = _count_future_days(req.end, req.today)
-        # Cap at 500 trading days (~2 years) to stay reasonable
-        n_future = min(n_future, 500)
 
-        # Cap the data download end date at client "today" so that yfinance
-        # doesn't get capped by the (potentially wrong) server clock.
-        # We still use req.end for n_future calculation above.
+        # Cap the data download end date at client "today"
         if req.today:
             data_end = min(req.end, req.today)
         else:
             data_end = req.end
 
-        # n_predict overrides date-based calculation (used for intraday)
-        if req.n_predict > 0:
+        _iv = req.interval or "1d"
+
+        if n_future == 0 and req.n_predict > 0:
+            # end = today (or past): use explicit per-interval horizon
             n_future = req.n_predict
+        elif n_future > 0:
+            # end is in the future: convert calendar days → interval steps
+            if _iv == "1h":
+                n_future = max(1, n_future * 24)
+            elif _iv == "6h":
+                n_future = max(1, round(n_future * 24 / 6))
+            elif _iv == "12h":
+                n_future = max(1, round(n_future * 24 / 12))
+            elif _iv == "1wk":
+                n_future = max(1, round(n_future / 7))
+            elif _iv == "1mo":
+                n_future = max(1, round(n_future / 30))
+            # 1d: n_future already in trading days, no conversion needed
+
+        n_future = min(n_future, 1000)
 
         loop = asyncio.get_event_loop()
         _interval = req.interval or "1d"
@@ -201,15 +214,27 @@ async def backtest(req: BacktestRequest):
 
     try:
         n_future = _count_future_days(req.end, req.today)
-        n_future = min(n_future, 500)
         data_end = min(req.end, req.today) if req.today else req.end
 
-        # n_predict overrides date-based calculation (used for intraday)
-        if req.n_predict > 0:
+        _interval = req.interval or "1d"
+
+        if n_future == 0 and req.n_predict > 0:
             n_future = req.n_predict
+        elif n_future > 0:
+            if _interval == "1h":
+                n_future = max(1, n_future * 24)
+            elif _interval == "6h":
+                n_future = max(1, round(n_future * 24 / 6))
+            elif _interval == "12h":
+                n_future = max(1, round(n_future * 24 / 12))
+            elif _interval == "1wk":
+                n_future = max(1, round(n_future / 7))
+            elif _interval == "1mo":
+                n_future = max(1, round(n_future / 30))
+
+        n_future = min(n_future, 1000)
 
         loop = asyncio.get_event_loop()
-        _interval = req.interval or "1d"
 
         # Запуск прогноза
         forecast_result = await loop.run_in_executor(
