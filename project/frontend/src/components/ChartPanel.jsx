@@ -86,7 +86,7 @@ const MODEL_COLORS = {
   ensemble:      '#4ade80',
 }
 
-const sel = 'bg-slate-800 border border-slate-600 rounded-lg text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors px-2 py-1.5'
+const sel = 'bg-[var(--surface)] border border-[var(--border)] rounded-lg text-sm text-warm focus:outline-none focus:border-amber-400 transition-colors px-2 py-1.5'
 
 export default function ChartPanel({ panelId, onRemove, defaultParams = {} }) {
   const [ticker,  setTicker]  = useState(defaultParams.ticker  ?? '^GSPC')
@@ -139,10 +139,10 @@ export default function ChartPanel({ panelId, onRemove, defaultParams = {} }) {
   }, [ticker, model, start, end])
 
   return (
-    <div className="bg-slate-900 border border-slate-700 rounded-xl flex flex-col overflow-hidden">
+    <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl flex flex-col overflow-hidden">
 
       {/* ── Panel header / controls ── */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-700 bg-slate-900/80 flex-wrap">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--border)] bg-[var(--surface)]/80 flex-wrap">
 
         {/* Color dot + model badge */}
         <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: modelColor }} />
@@ -168,7 +168,7 @@ export default function ChartPanel({ panelId, onRemove, defaultParams = {} }) {
         {/* Dates */}
         <input type="date" value={start} onChange={e => setStart(e.target.value)}
           className={sel + ' w-36'} title="Начало периода" />
-        <span className="text-slate-600 text-xs">→</span>
+        <span className="text-[var(--muted)] text-xs">→</span>
         <input type="date" value={end} onChange={e => setEnd(e.target.value)}
           className={sel + ' w-36'} title="Конец / дата прогноза" />
 
@@ -185,9 +185,9 @@ export default function ChartPanel({ panelId, onRemove, defaultParams = {} }) {
         {/* Metrics inline (after run) */}
         {data?.metrics && !loading && (
           <div className="flex items-center gap-3 text-xs font-mono">
-            <span className="text-slate-400">MAE <span className="text-white">{data.metrics.mae}</span></span>
-            <span className="text-slate-400">RMSE <span className="text-white">{data.metrics.rmse}</span></span>
-            <span className="text-slate-400">MAPE <span className="text-emerald-400">{data.metrics.mape}%</span></span>
+            <span className="text-[var(--muted)]">MAE <span className="text-[var(--text)]">{data.metrics.mae}</span></span>
+            <span className="text-[var(--muted)]">RMSE <span className="text-[var(--text)]">{data.metrics.rmse}</span></span>
+            <span className="text-[var(--muted)]">MAPE <span className="text-emerald-400">{data.metrics.mape}%</span></span>
           </div>
         )}
 
@@ -195,7 +195,7 @@ export default function ChartPanel({ panelId, onRemove, defaultParams = {} }) {
         <button
           onClick={run}
           disabled={loading}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-medium transition-colors flex-shrink-0"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-400 hover:bg-amber-300 disabled:opacity-50 text-black text-xs font-medium transition-colors flex-shrink-0"
         >
           {loading ? (
             <>
@@ -219,7 +219,7 @@ export default function ChartPanel({ panelId, onRemove, defaultParams = {} }) {
         {onRemove && (
           <button
             onClick={onRemove}
-            className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-900/20 transition-colors flex-shrink-0"
+            className="p-1.5 rounded-lg text-[var(--muted)] hover:text-red-400 hover:bg-red-900/20 transition-colors flex-shrink-0"
             title="Закрыть панель"
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
