@@ -145,23 +145,21 @@ export default function App() {
         </div>
       )}
 
-      {/* Signals page */}
-      {path === '/signals' && (
-        <main className="flex-1"><SignalsPage /></main>
-      )}
+      {/* Signals page — always mounted, hidden off-route to preserve state */}
+      <main className="flex-1" style={{ display: path === '/signals' ? 'flex' : 'none', flexDirection: 'column' }}>
+        <SignalsPage />
+      </main>
 
-      {/* Forecast panels */}
-      {path === '/forecast' && (
-        <main className="flex-1 p-4">
-          <div className={gridClass}>
-            {panels.map(p => (
-              <ChartPanel key={p.id} panelId={p.id}
-                defaultParams={p.defaults}
-                onRemove={panels.length > 1 ? () => removePanel(p.id) : null} />
-            ))}
-          </div>
-        </main>
-      )}
+      {/* Forecast panels — always mounted, hidden off-route to preserve state */}
+      <main className="flex-1 p-4" style={{ display: path === '/forecast' ? 'block' : 'none' }}>
+        <div className={gridClass}>
+          {panels.map(p => (
+            <ChartPanel key={p.id} panelId={p.id}
+              defaultParams={p.defaults}
+              onRemove={panels.length > 1 ? () => removePanel(p.id) : null} />
+          ))}
+        </div>
+      </main>
 
       <PricingModal
         open={pricingOpen}

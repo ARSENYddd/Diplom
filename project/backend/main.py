@@ -139,18 +139,20 @@ async def forecast(req: ForecastRequest):
             # end = today (or past): use explicit per-interval horizon
             n_future = req.n_predict
         elif n_future > 0:
-            # end is in the future: convert calendar days → interval steps
+            # end is in the future: convert calendar days → interval steps.
+            # For intraday add 48h buffer so weekends / market-close gaps
+            # don't cause the forecast to stop short of req.end.
             if _iv == "1h":
-                n_future = max(1, n_future * 24)
+                n_future = max(1, (n_future * 24) + 48)
             elif _iv == "6h":
-                n_future = max(1, round(n_future * 24 / 6))
+                n_future = max(1, round((n_future * 24 + 48) / 6))
             elif _iv == "12h":
-                n_future = max(1, round(n_future * 24 / 12))
+                n_future = max(1, round((n_future * 24 + 48) / 12))
             elif _iv == "1wk":
                 n_future = max(1, round(n_future / 7))
             elif _iv == "1mo":
                 n_future = max(1, round(n_future / 30))
-            # 1d: n_future already in trading days, no conversion needed
+            # 1d: already in trading days, no conversion needed
 
         n_future = min(n_future, 1000)
 
@@ -222,11 +224,11 @@ async def backtest(req: BacktestRequest):
             n_future = req.n_predict
         elif n_future > 0:
             if _interval == "1h":
-                n_future = max(1, n_future * 24)
+                n_future = max(1, (n_future * 24) + 48)
             elif _interval == "6h":
-                n_future = max(1, round(n_future * 24 / 6))
+                n_future = max(1, round((n_future * 24 + 48) / 6))
             elif _interval == "12h":
-                n_future = max(1, round(n_future * 24 / 12))
+                n_future = max(1, round((n_future * 24 + 48) / 12))
             elif _interval == "1wk":
                 n_future = max(1, round(n_future / 7))
             elif _interval == "1mo":
