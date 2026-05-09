@@ -19,7 +19,7 @@ const TICKERS = [
 function Nav({ onLaunch }) {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 flex items-center gap-6 px-12 h-[60px]
-                    bg-[var(--bg)]/85 border-b border-[var(--border)] backdrop-blur-xl">
+                    bg-[#0d0b08]/85 border-b border-[var(--border)] backdrop-blur-xl">
       <a href="#" className="flex items-center gap-2.5 text-white font-bold text-[17px] tracking-tight no-underline">
         <div className="w-[30px] h-[30px] rounded-[7px] flex items-center justify-center
                         text-black font-extrabold text-[14px]

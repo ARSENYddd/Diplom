@@ -101,7 +101,7 @@ export default function App() {
       {/* Forecast panels */}
       {page === 'forecast' && (
         <main className="flex-1 p-4">
-          <div className={`${gridClass} gap-4`}>
+          <div className={gridClass}>
             {panels.map(p => (
               <ChartPanel key={p.id} panelId={p.id}
                 defaultParams={p.defaults}

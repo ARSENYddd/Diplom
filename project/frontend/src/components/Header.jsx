@@ -2,7 +2,7 @@ export default function Header({ page, onNavigate }) {
   return (
     <header className="sticky top-0 z-40 flex items-center gap-4 px-6 h-[56px]
                        border-b border-[var(--border)]
-                       bg-[var(--bg)]/90 backdrop-blur-xl">
+                       bg-[#0d0b08]/90 backdrop-blur-xl">
       {/* Logo */}
       <div className="flex items-center gap-2.5">
         <div className="w-[28px] h-[28px] rounded-[7px] flex items-center justify-center
