@@ -315,17 +315,18 @@ function FeatureRow({ eyebrow, title, sub, bullets, panel, reverse = false }) {
   const ref = useReveal()
   return (
     <div ref={ref}
-      className={`reveal grid gap-20 items-center px-12 py-20 max-w-[1200px] mx-auto
-                  border-t border-[var(--border)]
-                  ${reverse ? 'grid-cols-[1fr_1fr]' : 'grid-cols-[1fr_1fr]'}`}
+      className="reveal grid grid-cols-[1fr_1fr] gap-20 items-center px-12 py-20 max-w-[1200px] mx-auto border-t border-[var(--border)]"
       style={reverse ? { direction: 'rtl' } : {}}>
       <div style={reverse ? { direction: 'ltr' } : {}}>
         <div className="text-[11px] font-bold tracking-[1.5px] uppercase text-amber-400 mb-4">
           {eyebrow}
         </div>
         <h2 className="text-[clamp(28px,3.5vw,44px)] font-extrabold text-white
-                       leading-[1.15] tracking-[-1px] mb-4"
-          dangerouslySetInnerHTML={{ __html: title }} />
+               leading-[1.15] tracking-[-1px] mb-4">
+          {title.split('<br/>').map((part, i, arr) => (
+            <span key={i}>{part}{i < arr.length - 1 && <br />}</span>
+          ))}
+        </h2>
         <p className="text-[16px] text-muted leading-[1.7] max-w-[480px] mb-10">{sub}</p>
         <ul className="flex flex-col gap-3.5">
           {bullets.map(b => (
@@ -348,16 +349,32 @@ function FeatureRow({ eyebrow, title, sub, bullets, panel, reverse = false }) {
   )
 }
 
+// ── Panel data ────────────────────────────────────────────────────────────────
+const BARS = [
+  { name: 'ARIMA',       mape: '1.82%', pct: 93,  warm: false },
+  { name: 'GARCH',       mape: '2.14%', pct: 100, warm: false },
+  { name: 'LSTM',        mape: '1.34%', pct: 65,  warm: true  },
+  { name: 'ARIMA+LSTM',  mape: '0.96%', pct: 47,  warm: true  },
+  { name: 'Triple',      mape: '0.87%', pct: 42,  warm: true  },
+  { name: '★ Ensemble',  mape: '0.78%', pct: 38,  warm: true, best: true },
+]
+
+const SIGNALS = [
+  { action: 'BUY',  ticker: '^GSPC',        model: 'Ensemble',      price: '5 248.49', conf: '87%', future: false },
+  { action: 'SELL', ticker: 'GAZP.ME',       model: 'ARIMA+LSTM',    price: '163.45',   conf: '72%', future: false },
+  { action: 'BUY',  ticker: 'GC=F (Золото)', model: 'Triple Hybrid', price: '2 341.80', conf: '91%', future: false },
+  { action: 'HOLD', ticker: 'NVDA',          model: 'GARCH+LSTM',    price: '867.40',   conf: '58%', future: false },
+  { action: 'BUY',  ticker: 'BZ=F (Brent)',  model: '★ Прогноз +7d', price: '83.14',    conf: '79%', future: true  },
+]
+
+const SIGNAL_COLORS = {
+  BUY:  { bg: 'bg-green-400/15',  text: 'text-green-400' },
+  SELL: { bg: 'bg-red-400/15',    text: 'text-red-400'   },
+  HOLD: { bg: 'bg-amber-400/15',  text: 'text-amber-400' },
+}
+
 // Panel: model accuracy bars
 function ModelBarsPanel() {
-  const BARS = [
-    { name: 'ARIMA',       mape: '1.82%', pct: 93,  warm: false },
-    { name: 'GARCH',       mape: '2.14%', pct: 100, warm: false },
-    { name: 'LSTM',        mape: '1.34%', pct: 65,  warm: true  },
-    { name: 'ARIMA+LSTM',  mape: '0.96%', pct: 47,  warm: true  },
-    { name: 'Triple',      mape: '0.87%', pct: 42,  warm: true  },
-    { name: '★ Ensemble',  mape: '0.78%', pct: 38,  warm: true, best: true },
-  ]
   return (
     <>
       <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--border)]">
@@ -400,18 +417,6 @@ function ModelBarsPanel() {
 
 // Panel: live signals
 function SignalsPanel() {
-  const SIGNALS = [
-    { action: 'BUY',  ticker: '^GSPC',        model: 'Ensemble',      price: '5 248.49', conf: '87%', future: false },
-    { action: 'SELL', ticker: 'GAZP.ME',       model: 'ARIMA+LSTM',    price: '163.45',   conf: '72%', future: false },
-    { action: 'BUY',  ticker: 'GC=F (Золото)', model: 'Triple Hybrid', price: '2 341.80', conf: '91%', future: false },
-    { action: 'HOLD', ticker: 'NVDA',          model: 'GARCH+LSTM',    price: '867.40',   conf: '58%', future: false },
-    { action: 'BUY',  ticker: 'BZ=F (Brent)',  model: '★ Прогноз +7d', price: '83.14',    conf: '79%', future: true  },
-  ]
-  const colors = {
-    BUY:  { bg: 'bg-green-400/15',  text: 'text-green-400' },
-    SELL: { bg: 'bg-red-400/15',    text: 'text-red-400'   },
-    HOLD: { bg: 'bg-amber-400/15',  text: 'text-amber-400' },
-  }
   return (
     <>
       <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--border)]">
@@ -419,14 +424,14 @@ function SignalsPanel() {
         <span className="text-[11px] text-muted">Активные сигналы · Обновлено только что</span>
       </div>
       <div className="p-4 flex flex-col gap-2">
-        {SIGNALS.map((s, i) => (
-          <div key={i}
+        {SIGNALS.map((s) => (
+          <div key={s.ticker}
             className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg border
               ${s.future
                 ? 'border-amber-400/20 bg-amber-400/5'
                 : 'border-[var(--border)] bg-black/20'}`}>
             <span className={`text-[10px] font-bold px-2 py-0.5 rounded
-                              ${colors[s.action].bg} ${colors[s.action].text}`}>
+                              ${SIGNAL_COLORS[s.action].bg} ${SIGNAL_COLORS[s.action].text}`}>
               {s.action}
             </span>
             <div className="min-w-0">
