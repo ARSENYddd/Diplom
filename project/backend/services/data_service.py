@@ -101,8 +101,8 @@ def _load_moex(ticker_me: str, start: str, end: str) -> pd.DataFrame:
 # Generic helpers
 # ---------------------------------------------------------------------------
 
-def _cache_key(ticker: str, start: str, end: str) -> str:
-    raw = f"{ticker}_{start}_{end}"
+def _cache_key(ticker: str, start: str, end: str, interval: str = "1d") -> str:
+    raw = f"{ticker}_{start}_{end}_{interval}"
     return hashlib.md5(raw.encode()).hexdigest()
 
 
@@ -115,8 +115,29 @@ def _is_moex_ticker(ticker: str) -> bool:
     return ticker.upper().endswith(".ME")
 
 
-def load_data(ticker: str, start: str, end: str) -> pd.DataFrame:
-    key      = _cache_key(ticker, start, end)
+# Intervals that require intraday download from yfinance
+_INTRADAY_INTERVALS = {"1h", "6h", "12h"}
+# Mapping from our interval keys to yfinance interval strings
+_YF_INTERVAL_MAP = {
+    "1h":  "1h",
+    "6h":  "1h",   # download 1h, resample to 6h
+    "12h": "1h",   # download 1h, resample to 12h
+    "1d":  "1d",
+    "1wk": "1wk",
+    "1mo": "1mo",
+}
+# Resample rules for sub-daily intervals we aggregate ourselves
+_RESAMPLE_MAP = {
+    "6h":  "6h",
+    "12h": "12h",
+}
+
+
+def load_data(ticker: str, start: str, end: str, interval: str = "1d") -> pd.DataFrame:
+    # Normalise interval
+    interval = interval or "1d"
+
+    key      = _cache_key(ticker, start, end, interval)
 
     if key in _memory_cache:
         return _memory_cache[key]
@@ -128,12 +149,16 @@ def load_data(ticker: str, start: str, end: str) -> pd.DataFrame:
         _memory_cache[key] = df
         return df
 
-    # --- Choose data source ---
+    # --- MOEX: only daily data is available ---
     if _is_moex_ticker(ticker):
+        if interval in _INTRADAY_INTERVALS:
+            raise ValueError(
+                f"Внутридневные данные недоступны для MOEX-тикеров ({ticker}). "
+                "Выберите таймфрейм 1д, 1н или 1мес."
+            )
         try:
             df = _load_moex(ticker, start, end)
         except Exception as moex_err:
-            # Fallback: yfinance тоже поддерживает .ME тикеры (через Yahoo Finance)
             import logging
             logging.warning(
                 f"MOEX ISS недоступен для {ticker} ({moex_err}), "
@@ -149,8 +174,19 @@ def load_data(ticker: str, start: str, end: str) -> pd.DataFrame:
             df = df[["Close"]].copy()
             df.index = pd.to_datetime(df.index)
             df = df.dropna()
+        # Apply weekly/monthly resampling if requested
+        if interval == "1wk":
+            df = df.resample("W").last().dropna()
+        elif interval == "1mo":
+            df = df.resample("ME").last().dropna()
     else:
-        df = yf.download(ticker, start=start, end=end, progress=False, auto_adjust=True)
+        yf_interval = _YF_INTERVAL_MAP.get(interval, "1d")
+
+        df = yf.download(
+            ticker, start=start, end=end,
+            interval=yf_interval,
+            progress=False, auto_adjust=True,
+        )
         if df.empty:
             raise ValueError(f"Нет данных для тикера {ticker} за период {start}–{end}.")
 
@@ -162,15 +198,23 @@ def load_data(ticker: str, start: str, end: str) -> pd.DataFrame:
         df.index = pd.to_datetime(df.index)
         df = df.dropna()
 
+        # Resample 1h → 6h or 12h
+        if interval in _RESAMPLE_MAP:
+            df = df.resample(_RESAMPLE_MAP[interval]).last().dropna()
+
     with open(disk_path, "wb") as f:
         pickle.dump(df, f)
     _memory_cache[key] = df
     return df
 
 
-def get_price_series(ticker: str, start: str, end: str) -> Tuple[list, list]:
-    df     = load_data(ticker, start, end)
-    dates  = [d.strftime("%Y-%m-%d") for d in df.index]
+def get_price_series(ticker: str, start: str, end: str, interval: str = "1d") -> Tuple[list, list]:
+    df = load_data(ticker, start, end, interval)
+    is_intraday = interval in _INTRADAY_INTERVALS
+    if is_intraday:
+        dates = [d.strftime("%Y-%m-%d %H:%M") for d in df.index]
+    else:
+        dates = [d.strftime("%Y-%m-%d") for d in df.index]
     prices = [round(float(p), 4) for p in df["Close"].values]
     return dates, prices
 

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import ForecastChart from './ForecastChart'
 import { fetchForecast, fetchBacktest } from '../api/client'
 
@@ -88,6 +88,22 @@ const MODEL_COLORS = {
 
 const sel = 'bg-[var(--surface)] border border-[var(--border)] rounded-lg text-sm text-warm focus:outline-none focus:border-amber-400 transition-colors px-2 py-1.5'
 
+const TIMEFRAMES = [
+  { key: '1h',  label: '1ч',   intraday: true,  maxDays: 729 },
+  { key: '6h',  label: '6ч',   intraday: true,  maxDays: 729 },
+  { key: '12h', label: '12ч',  intraday: true,  maxDays: 729 },
+  { key: '1d',  label: '1д',   intraday: false },
+  { key: '1wk', label: '1н',   intraday: false },
+  { key: '1mo', label: '1мес', intraday: false },
+]
+
+// For intraday: auto-set start date to N days ago (max yfinance 1h = 729 days)
+function intradayStartDate(maxDays = 729) {
+  const d = new Date()
+  d.setDate(d.getDate() - maxDays + 1)
+  return d.toISOString().slice(0, 10)
+}
+
 // ── Simple view: summary cards only ─────────────────────────────────────────
 function SimpleView({ data, tickerLabel, modelLabel }) {
   if (!data) return (
@@ -152,10 +168,11 @@ function SimpleView({ data, tickerLabel, modelLabel }) {
 }
 
 export default function ChartPanel({ panelId, onRemove, defaultParams = {} }) {
-  const [ticker,  setTicker]  = useState(defaultParams.ticker  ?? '^GSPC')
-  const [model,   setModel]   = useState(defaultParams.model   ?? 'arima_lstm')
-  const [start,   setStart]   = useState(defaultParams.start   ?? '2018-01-01')
-  const [end,     setEnd]     = useState(defaultParams.end     ?? '2024-01-01')
+  const [ticker,   setTicker]   = useState(defaultParams.ticker   ?? '^GSPC')
+  const [model,    setModel]    = useState(defaultParams.model    ?? 'arima_lstm')
+  const [interval, setInterval] = useState(defaultParams.interval ?? '1d')
+  const [start,    setStart]    = useState(defaultParams.start    ?? '2018-01-01')
+  const [end,      setEnd]      = useState(defaultParams.end      ?? '2024-01-01')
 
   const [data,     setData]     = useState(null)
   const [loading,  setLoading]  = useState(false)
@@ -165,24 +182,43 @@ export default function ChartPanel({ panelId, onRemove, defaultParams = {} }) {
   // Торговые сигналы — подгружаются автоматически после прогноза
   const [signals, setSignals] = useState(null)
 
-  const isFuture = new Date(end) > new Date()
+  const tf = TIMEFRAMES.find(t => t.key === interval) ?? TIMEFRAMES[3]
+  const isMoex = ticker.toUpperCase().endsWith('.ME')
+  const moexIntradayWarning = isMoex && tf.intraday
+
+  // When switching to intraday — auto-adjust start to within allowed range
+  useEffect(() => {
+    if (tf.intraday) {
+      const minStart = intradayStartDate(tf.maxDays)
+      if (start < minStart) setStart(minStart)
+      // End date: cap to today for intraday
+      const today = new Date().toISOString().slice(0, 10)
+      if (end > today) setEnd(today)
+    }
+  }, [interval]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const isFuture = !tf.intraday && new Date(end) > new Date()
   const modelColor = MODEL_COLORS[model] ?? '#94a3b8'
   const tickerLabel = TICKER_GROUPS.flatMap(g => g.tickers).find(t => t.value === ticker)?.label ?? ticker
 
   const run = useCallback(async () => {
+    if (moexIntradayWarning) {
+      setError('Внутридневные данные недоступны для MOEX-тикеров. Выберите 1д, 1н или 1мес.')
+      return
+    }
     setLoading(true)
     setError(null)
     setSignals(null)  // сбрасываем старые сигналы до прихода новых
     const today = new Date().toISOString().slice(0, 10)
     try {
-      const result = await fetchForecast({ ticker, model, start, end, window: 60, today })
+      const result = await fetchForecast({ ticker, model, start, end, window: 60, today, interval })
       setData(result)
 
       // Автоматически запрашиваем сигналы после успешного прогноза
       try {
         const bt = await fetchBacktest({
           ticker, model, start, end,
-          window: 60, today,
+          window: 60, today, interval,
           strategy: 'momentum',
           commission: 0.001,
           initial_capital: 10000,
@@ -200,7 +236,7 @@ export default function ChartPanel({ panelId, onRemove, defaultParams = {} }) {
     } finally {
       setLoading(false)
     }
-  }, [ticker, model, start, end])
+  }, [ticker, model, start, end, interval, moexIntradayWarning])
 
   return (
     <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl flex flex-col overflow-hidden">
@@ -229,17 +265,41 @@ export default function ChartPanel({ panelId, onRemove, defaultParams = {} }) {
           ))}
         </select>
 
+        {/* Timeframe selector */}
+        <div className="flex items-center gap-0.5 bg-[var(--bg)] rounded-lg p-0.5 border border-[var(--border)]">
+          {TIMEFRAMES.map(({ key, label }) => (
+            <button key={key} onClick={() => setInterval(key)}
+              className={`text-[11px] font-medium px-2 py-1 rounded-md transition-all
+                ${interval === key
+                  ? 'bg-amber-400/20 text-amber-400 border border-amber-400/40'
+                  : 'text-muted hover:text-warm'}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+
         {/* Dates */}
         <input type="date" value={start} onChange={e => setStart(e.target.value)}
-          className={sel + ' w-36'} title="Начало периода" />
+          className={sel + ' w-36' + (tf.intraday ? ' opacity-40 cursor-not-allowed' : '')}
+          title="Начало периода"
+          disabled={tf.intraday} />
         <span className="text-[var(--muted)] text-xs">→</span>
         <input type="date" value={end} onChange={e => setEnd(e.target.value)}
-          className={sel + ' w-36'} title="Конец / дата прогноза" />
+          className={sel + ' w-36' + (tf.intraday ? ' opacity-40 cursor-not-allowed' : '')}
+          title="Конец / дата прогноза"
+          disabled={tf.intraday} />
 
         {/* Future badge */}
         {isFuture && (
           <span className="text-xs px-1.5 py-0.5 rounded bg-emerald-900/40 border border-emerald-700/60 text-emerald-300 flex-shrink-0">
             📈 прогноз
+          </span>
+        )}
+
+        {/* Intraday info badge */}
+        {tf.intraday && (
+          <span className="text-xs px-1.5 py-0.5 rounded bg-blue-900/40 border border-blue-700/60 text-blue-300 flex-shrink-0">
+            ⚡ {tf.maxDays}д
           </span>
         )}
 
@@ -308,6 +368,13 @@ export default function ChartPanel({ panelId, onRemove, defaultParams = {} }) {
           </button>
         )}
       </div>
+
+      {/* ── MOEX intraday warning ── */}
+      {moexIntradayWarning && !error && (
+        <div className="mx-3 mt-3 px-3 py-2 rounded-lg bg-amber-900/20 border border-amber-700/50 text-xs text-amber-300">
+          ⚠️ MOEX-тикеры не поддерживают внутридневные данные. Выберите таймфрейм <strong>1д</strong>, <strong>1н</strong> или <strong>1мес</strong>.
+        </div>
+      )}
 
       {/* ── Error ── */}
       {error && (

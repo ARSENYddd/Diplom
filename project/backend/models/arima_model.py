@@ -6,8 +6,8 @@ from services.forecast_utils import future_trading_dates, bootstrap_future, boot
 from models._common import get_seed
 
 
-def run_arima(ticker: str, start: str, end: str, window: int = 60, n_future: int = 0) -> dict:
-    df = load_data(ticker, start, end)
+def run_arima(ticker: str, start: str, end: str, window: int = 60, n_future: int = 0, interval: str = "1d") -> dict:
+    df = load_data(ticker, start, end, interval)
     train_df, test_df = train_test_split_series(df)
 
     train_prices = train_df["Close"].values.astype(float).flatten()

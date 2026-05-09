@@ -100,6 +100,7 @@ class ForecastRequest(BaseModel):
     ] = "arima_lstm"
     window: int = 60
     today: str = ""  # client-supplied "today" date (YYYY-MM-DD); avoids server clock issues
+    interval: str = "1d"  # data interval: 1h, 6h, 12h, 1d, 1wk, 1mo
 
 
 @app.get("/api/data")
@@ -136,9 +137,10 @@ async def forecast(req: ForecastRequest):
             data_end = req.end
 
         loop = asyncio.get_event_loop()
+        _interval = req.interval or "1d"
         result = await loop.run_in_executor(
             None,
-            lambda: runner(req.ticker, req.start, data_end, req.window, n_future),
+            lambda: runner(req.ticker, req.start, data_end, req.window, n_future, _interval),
         )
         return result
     except Exception as e:
@@ -178,6 +180,7 @@ class BacktestRequest(BaseModel):
     slippage: float = 0.0005
     reinvest: bool = True
     risk_free_rate: float = 0.0
+    interval: str = "1d"  # data interval: 1h, 6h, 12h, 1d, 1wk, 1mo
 
 
 @app.post("/api/backtest")
@@ -196,11 +199,12 @@ async def backtest(req: BacktestRequest):
         data_end = min(req.end, req.today) if req.today else req.end
 
         loop = asyncio.get_event_loop()
+        _interval = req.interval or "1d"
 
         # Запуск прогноза
         forecast_result = await loop.run_in_executor(
             None,
-            lambda: runner(req.ticker, req.start, data_end, req.window, n_future),
+            lambda: runner(req.ticker, req.start, data_end, req.window, n_future, _interval),
         )
 
         # Генерация сигналов на тестовом периоде

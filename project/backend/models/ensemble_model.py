@@ -163,11 +163,11 @@ def _fit_and_predict_triple(train: np.ndarray, val: np.ndarray, window: int):
 
 # ── Главная функция ────────────────────────────────────────────────────────────
 
-def run_ensemble(ticker: str, start: str, end: str, window: int = 60, n_future: int = 0) -> dict:
+def run_ensemble(ticker: str, start: str, end: str, window: int = 60, n_future: int = 0, interval: str = "1d") -> dict:
     if not HAS_TF:
         raise RuntimeError("TensorFlow is not installed")
 
-    df = load_data(ticker, start, end)
+    df = load_data(ticker, start, end, interval)
     train_df, test_df = train_test_split_series(df)
 
     train_prices = train_df["Close"].values.astype(float).flatten()
