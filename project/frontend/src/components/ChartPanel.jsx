@@ -279,20 +279,11 @@ export default function ChartPanel({ panelId, onRemove, defaultParams = {} }) {
 
         {/* Dates */}
         {tf.intraday ? (
-          /* Intraday: editable but bounded, with a clear label */
-          <div className="flex items-center gap-1.5">
-            <input type="date" value={start} onChange={e => setStart(e.target.value)}
-              min={daysAgo(tf.maxDays)} max={end}
-              className={sel + ' w-36'} title="Начало периода" />
-            <span className="text-[var(--muted)] text-xs">→</span>
-            <input type="date" value={end} onChange={e => setEnd(e.target.value)}
-              min={start} max={today()}
-              className={sel + ' w-36'} title="Конец периода (не позже сегодня)" />
-            <span className="text-[11px] text-blue-400 bg-blue-900/30 border border-blue-700/40 px-2 py-1 rounded-lg flex-shrink-0"
-              title={`Данные: последние ${tf.defaultDays} дней → сейчас. Прогноз: ${tf.nPredict} свечей вперёд (${tf.horizon})`}>
-              ⚡ прогноз: {tf.horizon}
-            </span>
-          </div>
+          /* Intraday: no date pickers — range is fixed by timeframe */
+          <span className="text-[11px] text-[var(--muted)] bg-[var(--bg)] border border-[var(--border)] px-2.5 py-1 rounded-lg"
+            title={`Обучение: последние ${tf.defaultDays} дней (с ${start}). Прогноз: ${tf.nPredict} свечей вперёд (${tf.horizon})`}>
+            📅 обучение с <span className="text-warm font-medium">{start}</span>
+          </span>
         ) : (
           <>
             <input type="date" value={start} onChange={e => setStart(e.target.value)}
@@ -300,7 +291,6 @@ export default function ChartPanel({ panelId, onRemove, defaultParams = {} }) {
             <span className="text-[var(--muted)] text-xs">→</span>
             <input type="date" value={end} onChange={e => setEnd(e.target.value)}
               className={sel + ' w-36'} title="Конец / дата прогноза" />
-            {/* Future badge */}
             {isFuture && (
               <span className="text-xs px-1.5 py-0.5 rounded bg-emerald-900/40 border border-emerald-700/60 text-emerald-300 flex-shrink-0">
                 📈 прогноз
