@@ -119,15 +119,40 @@ function SimpleView({ data, tickerLabel, modelLabel }) {
     </div>
   )
 
-  const realPrices = data.actual?.filter(v => v != null) ?? []
+  const realPrices   = data.actual?.filter(v => v != null) ?? []
   const currentPrice = realPrices[realPrices.length - 1] ?? null
-  const predicted = data.predicted ?? []
+  const predicted    = data.predicted ?? []
   const lastForecast = predicted[predicted.length - 1] ?? null
 
   const changePct = currentPrice && lastForecast
     ? ((lastForecast - currentPrice) / currentPrice) * 100
     : null
   const isUp = changePct !== null && changePct >= 0
+
+  // ── Direction signal from scenarios ──────────────────────────────────────
+  // Count what fraction of bootstrap scenarios end above the current price.
+  // ≥60% bullish → BUY, ≤40% bullish → SELL, otherwise → HOLD
+  const scenarios      = data.scenarios ?? []
+  const totalScenarios = scenarios.length
+  const bullishCount   = totalScenarios > 0
+    ? scenarios.filter(sc => {
+        const last = sc.values?.[sc.values.length - 1]
+        return last != null && currentPrice != null && last > currentPrice
+      }).length
+    : 0
+  const bullishPct = totalScenarios > 0 ? Math.round(bullishCount / totalScenarios * 100) : null
+
+  // Signal: only meaningful when we have future scenarios
+  const signal = bullishPct !== null
+    ? (bullishPct >= 60 ? 'BUY' : bullishPct <= 40 ? 'SELL' : 'HOLD')
+    : null
+
+  const signalColor = signal === 'BUY'  ? 'text-green-400'
+                    : signal === 'SELL' ? 'text-red-400'
+                    : 'text-amber-400'
+  const signalBg    = signal === 'BUY'  ? 'bg-green-950/30 border-green-800/40'
+                    : signal === 'SELL' ? 'bg-red-950/30 border-red-800/40'
+                    : 'bg-amber-900/20 border-amber-700/40'
 
   const fmt = v => {
     if (v == null) return '—'
@@ -136,7 +161,7 @@ function SimpleView({ data, tickerLabel, modelLabel }) {
 
   return (
     <div className="p-5 space-y-4">
-      {/* 3 cards */}
+      {/* 3 main cards */}
       <div className="grid grid-cols-3 gap-3">
         <div className="bg-[var(--bg)] border border-[var(--border)] rounded-xl p-5">
           <p className="text-[11px] text-muted uppercase tracking-[1px] mb-2">Текущая цена</p>
@@ -161,10 +186,48 @@ function SimpleView({ data, tickerLabel, modelLabel }) {
         </div>
       </div>
 
+      {/* Direction signal — only shown when scenarios exist */}
+      {signal && (
+        <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${signalBg}`}>
+          {/* Signal label */}
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] text-muted uppercase tracking-[1px]">Сигнал</span>
+            <span className={`text-[22px] font-extrabold leading-none ${signalColor}`}>
+              {signal === 'BUY' ? '▲ BUY' : signal === 'SELL' ? '▼ SELL' : '— HOLD'}
+            </span>
+          </div>
+
+          {/* Divider */}
+          <div className="w-px h-8 bg-[var(--border)]" />
+
+          {/* Confidence bar */}
+          <div className="flex-1 space-y-1">
+            <div className="flex justify-between text-[11px]">
+              <span className="text-red-400/70">Медвежьи {100 - bullishPct}%</span>
+              <span className="text-green-400/70">Бычьи {bullishPct}%</span>
+            </div>
+            <div className="h-2 rounded-full bg-red-900/40 overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${bullishPct}%`,
+                  background: bullishPct >= 60 ? '#4ade80' : bullishPct <= 40 ? '#f87171' : '#f59e0b',
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Disclaimer */}
+          <span className="text-[10px] text-muted/50 max-w-[90px] leading-tight">
+            на основе {totalScenarios} сценариев
+          </span>
+        </div>
+      )}
+
       {/* Metrics row */}
       {data.metrics?.mape && (
         <div className="flex items-center gap-4 px-1 text-[12px]">
-          <span className="text-muted">Точность:</span>
+          <span className="text-muted">Точность (бэктест):</span>
           <span className="text-green-400 font-semibold">MAPE {data.metrics.mape}%</span>
           <span className="text-muted/60">MAE {data.metrics.mae}</span>
           <span className="text-muted/60">RMSE {data.metrics.rmse}</span>

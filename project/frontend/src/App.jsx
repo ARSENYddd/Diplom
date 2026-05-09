@@ -20,44 +20,12 @@ export default function App() {
 
   const openPricing = () => setPricingOpen(true)
 
-  // Landing page
+  // Landing page — unique layout, nothing to preserve here
   if (path === '/') {
     return (
       <>
         <UnifiedNav onOpenPricing={openPricing} />
         <LandingPage onOpenPricing={openPricing} onNavigate={navigate} />
-        <PricingModal
-          open={pricingOpen}
-          onClose={() => setPricingOpen(false)}
-          onStart={() => { setPricingOpen(false); navigate('/forecast') }}
-        />
-      </>
-    )
-  }
-
-  // Wiki page
-  if (path === '/wiki') {
-    return (
-      <>
-        <UnifiedNav onOpenPricing={openPricing} />
-        <div className="h-[60px]" />
-        <WikiPage />
-        <PricingModal
-          open={pricingOpen}
-          onClose={() => setPricingOpen(false)}
-          onStart={() => { setPricingOpen(false); navigate('/forecast') }}
-        />
-      </>
-    )
-  }
-
-  // Models page
-  if (path === '/models') {
-    return (
-      <>
-        <UnifiedNav onOpenPricing={openPricing} />
-        <div className="h-[60px]" />
-        <ModelsPage />
         <PricingModal
           open={pricingOpen}
           onClose={() => setPricingOpen(false)}
@@ -94,7 +62,11 @@ export default function App() {
       {/* offset for fixed nav */}
       <div className="h-[60px] flex-shrink-0" />
 
-      {/* Forecast toolbar */}
+      {/* ── Static pages (no persistent state — safe to mount/unmount) ── */}
+      {path === '/wiki'   && <WikiPage />}
+      {path === '/models' && <ModelsPage />}
+
+      {/* ── Forecast toolbar — shown only on /forecast ── */}
       {path === '/forecast' && (
         <div className="px-4 py-2 border-b border-[var(--border)] flex items-center gap-3">
           <span className="text-[12px] text-muted">Панели:</span>
@@ -145,13 +117,22 @@ export default function App() {
         </div>
       )}
 
-      {/* Signals page — always mounted, hidden off-route to preserve state */}
-      <main className="flex-1" style={{ display: path === '/signals' ? 'flex' : 'none', flexDirection: 'column' }}>
+      {/*
+        ── Signals & Forecast — ALWAYS mounted, hidden via display:none ──
+        This preserves component state (data, loading results) when the user
+        navigates to /wiki or /models and comes back.
+      */}
+      <main
+        className="flex-1"
+        style={{ display: path === '/signals' ? 'flex' : 'none', flexDirection: 'column' }}
+      >
         <SignalsPage />
       </main>
 
-      {/* Forecast panels — always mounted, hidden off-route to preserve state */}
-      <main className="flex-1 p-4" style={{ display: path === '/forecast' ? 'block' : 'none' }}>
+      <main
+        className="flex-1 p-4"
+        style={{ display: path === '/forecast' ? 'block' : 'none' }}
+      >
         <div className={gridClass}>
           {panels.map(p => (
             <ChartPanel key={p.id} panelId={p.id}
