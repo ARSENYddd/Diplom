@@ -47,8 +47,8 @@ export default {
           '100%': { transform: 'translateX(200%)' },
         },
         scanline: {
-          '0%':   { transform: 'translateY(-2px)' },
-          '100%': { transform: 'translateY(100%)' },
+          '0%':   { transform: 'translateY(0px)' },
+          '100%': { transform: 'translateY(800px)' },
         },
         'scroll-ticker': {
           from: { transform: 'translateX(0)' },

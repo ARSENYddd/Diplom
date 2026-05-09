@@ -1,5 +1,4 @@
 // project/frontend/src/components/LandingPage.jsx
-import { useEffect, useRef } from 'react'
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 const TICKERS = [
@@ -149,10 +148,11 @@ function Hero({ onLaunch }) {
 
 function HeroDashboard() {
   return (
-    <div className="relative w-full max-w-[900px] rounded-2xl overflow-hidden
+    <div className="w-full max-w-[900px] animate-fade-up [animation-delay:400ms]">
+    <div className="relative w-full rounded-2xl overflow-hidden
                     bg-[var(--surface)] border border-[var(--border)]
                     shadow-[0_32px_80px_rgba(0,0,0,0.5),0_0_0_1px_rgba(245,158,11,0.1)]
-                    animate-fade-up animate-float [animation-delay:400ms]">
+                    animate-float">
       {/* Top amber line */}
       <div className="absolute top-0 left-0 right-0 h-px
                       bg-gradient-to-r from-transparent via-amber-400 to-transparent" />
@@ -262,6 +262,7 @@ function HeroDashboard() {
           </svg>
         </div>
       </div>
+    </div>
     </div>
   )
 }
