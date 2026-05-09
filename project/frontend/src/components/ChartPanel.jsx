@@ -278,25 +278,15 @@ export default function ChartPanel({ panelId, onRemove, defaultParams = {} }) {
         </div>
 
         {/* Dates */}
-        {tf.intraday ? (
-          /* Intraday: no date pickers — range is fixed by timeframe */
-          <span className="text-[11px] text-[var(--muted)] bg-[var(--bg)] border border-[var(--border)] px-2.5 py-1 rounded-lg"
-            title={`Обучение: последние ${tf.defaultDays} дней (с ${start}). Прогноз: ${tf.nPredict} свечей вперёд (${tf.horizon})`}>
-            📅 обучение с <span className="text-warm font-medium">{start}</span>
+        <input type="date" value={start} onChange={e => setStart(e.target.value)}
+          className={sel + ' w-36'} title="Начало периода" />
+        <span className="text-[var(--muted)] text-xs">→</span>
+        <input type="date" value={end} onChange={e => setEnd(e.target.value)}
+          className={sel + ' w-36'} title="Конец / дата прогноза" />
+        {isFuture && (
+          <span className="text-xs px-1.5 py-0.5 rounded bg-emerald-900/40 border border-emerald-700/60 text-emerald-300 flex-shrink-0">
+            📈 прогноз
           </span>
-        ) : (
-          <>
-            <input type="date" value={start} onChange={e => setStart(e.target.value)}
-              className={sel + ' w-36'} title="Начало периода" />
-            <span className="text-[var(--muted)] text-xs">→</span>
-            <input type="date" value={end} onChange={e => setEnd(e.target.value)}
-              className={sel + ' w-36'} title="Конец / дата прогноза" />
-            {isFuture && (
-              <span className="text-xs px-1.5 py-0.5 rounded bg-emerald-900/40 border border-emerald-700/60 text-emerald-300 flex-shrink-0">
-                📈 прогноз
-              </span>
-            )}
-          </>
         )}
 
         {/* Mode toggle */}
