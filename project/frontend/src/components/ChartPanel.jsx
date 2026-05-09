@@ -1,9 +1,6 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback } from 'react'
 import ForecastChart from './ForecastChart'
 import { fetchForecast, fetchBacktest } from '../api/client'
-import {
-  LineChart, Line, ResponsiveContainer, Tooltip,
-} from 'recharts'
 
 const TICKER_GROUPS = [
   {
@@ -91,30 +88,16 @@ const MODEL_COLORS = {
 
 const sel = 'bg-[var(--surface)] border border-[var(--border)] rounded-lg text-sm text-warm focus:outline-none focus:border-amber-400 transition-colors px-2 py-1.5'
 
-// ── Simple view: cards + mini sparkline ─────────────────────────────────────
+// ── Simple view: summary cards only ─────────────────────────────────────────
 function SimpleView({ data, tickerLabel, modelLabel }) {
-  const sparkData = useMemo(() => {
-    if (!data) return []
-    const last = Math.min(data.dates.length, 60)
-    const from = data.dates.length - last
-    return data.dates.slice(from).map((d, i) => ({
-      date: d,
-      price: data.actual?.[from + i] ?? null,
-      forecast: data.predicted?.[from + i] ?? null,
-    }))
-  }, [data])
-
   if (!data) return (
     <div className="flex items-center justify-center h-48 text-muted text-sm">
       Запустите прогноз для отображения
     </div>
   )
 
-  // Last real price
   const realPrices = data.actual?.filter(v => v != null) ?? []
   const currentPrice = realPrices[realPrices.length - 1] ?? null
-
-  // Last forecast value
   const predicted = data.predicted ?? []
   const lastForecast = predicted[predicted.length - 1] ?? null
 
@@ -129,54 +112,41 @@ function SimpleView({ data, tickerLabel, modelLabel }) {
   }
 
   return (
-    <div className="p-4 space-y-4">
-      {/* Cards */}
+    <div className="p-5 space-y-4">
+      {/* 3 cards */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="bg-[var(--bg)] border border-[var(--border)] rounded-xl p-4">
-          <p className="text-[11px] text-muted uppercase tracking-[1px] mb-1">Текущая цена</p>
-          <p className="text-[22px] font-bold text-warm">{fmt(currentPrice)}</p>
-          <p className="text-[11px] text-muted mt-1">{tickerLabel}</p>
+        <div className="bg-[var(--bg)] border border-[var(--border)] rounded-xl p-5">
+          <p className="text-[11px] text-muted uppercase tracking-[1px] mb-2">Текущая цена</p>
+          <p className="text-[28px] font-bold text-warm leading-none">{fmt(currentPrice)}</p>
+          <p className="text-[11px] text-muted mt-2">{tickerLabel}</p>
         </div>
-        <div className="bg-[var(--bg)] border border-[var(--border)] rounded-xl p-4">
-          <p className="text-[11px] text-muted uppercase tracking-[1px] mb-1">Прогноз</p>
-          <p className="text-[22px] font-bold text-amber-400">{fmt(lastForecast)}</p>
-          <p className="text-[11px] text-muted mt-1">{modelLabel}</p>
+
+        <div className="bg-[var(--bg)] border border-amber-400/25 rounded-xl p-5">
+          <p className="text-[11px] text-muted uppercase tracking-[1px] mb-2">Прогноз модели</p>
+          <p className="text-[28px] font-bold text-amber-400 leading-none">{fmt(lastForecast)}</p>
+          <p className="text-[11px] text-muted mt-2">{modelLabel}</p>
         </div>
-        <div className={`rounded-xl p-4 border ${isUp ? 'bg-green-950/30 border-green-800/40' : 'bg-red-950/30 border-red-800/40'}`}>
-          <p className="text-[11px] text-muted uppercase tracking-[1px] mb-1">Изменение</p>
-          <p className={`text-[22px] font-bold ${isUp ? 'text-green-400' : 'text-red-400'}`}>
+
+        <div className={`rounded-xl p-5 border ${isUp ? 'bg-green-950/30 border-green-800/40' : 'bg-red-950/30 border-red-800/40'}`}>
+          <p className="text-[11px] text-muted uppercase tracking-[1px] mb-2">Изменение</p>
+          <p className={`text-[28px] font-bold leading-none ${isUp ? 'text-green-400' : 'text-red-400'}`}>
             {changePct !== null ? `${isUp ? '+' : ''}${changePct.toFixed(2)}%` : '—'}
           </p>
-          <p className="text-[11px] text-muted mt-1">{isUp ? '↑ Рост' : '↓ Снижение'}</p>
+          <p className={`text-[11px] mt-2 ${isUp ? 'text-green-400/70' : 'text-red-400/70'}`}>
+            {isUp ? '↑ Ожидается рост' : '↓ Ожидается снижение'}
+          </p>
         </div>
       </div>
 
-      {/* MAPE */}
+      {/* Metrics row */}
       {data.metrics?.mape && (
-        <div className="flex items-center gap-2 text-[12px] text-muted">
-          <span>Точность модели:</span>
+        <div className="flex items-center gap-4 px-1 text-[12px]">
+          <span className="text-muted">Точность:</span>
           <span className="text-green-400 font-semibold">MAPE {data.metrics.mape}%</span>
-          <span className="text-muted/60">· MAE {data.metrics.mae} · RMSE {data.metrics.rmse}</span>
+          <span className="text-muted/60">MAE {data.metrics.mae}</span>
+          <span className="text-muted/60">RMSE {data.metrics.rmse}</span>
         </div>
       )}
-
-      {/* Mini sparkline */}
-      <div className="bg-[var(--bg)] border border-[var(--border)] rounded-xl p-3">
-        <p className="text-[11px] text-muted mb-2">Последние 60 точек</p>
-        <ResponsiveContainer width="100%" height={120}>
-          <LineChart data={sparkData} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
-            <Tooltip
-              contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11 }}
-              labelStyle={{ color: '#7a6a4a' }}
-              formatter={(v, name) => [v?.toFixed(2), name]}
-            />
-            <Line type="monotone" dataKey="price" stroke="#e8d5a3" strokeWidth={1.5}
-              dot={false} connectNulls={true} isAnimationActive={false} name="Реальные" />
-            <Line type="monotone" dataKey="forecast" stroke="#f59e0b" strokeWidth={1.5}
-              dot={false} connectNulls={true} isAnimationActive={false} name="Прогноз" strokeDasharray="5 2" />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
     </div>
   )
 }

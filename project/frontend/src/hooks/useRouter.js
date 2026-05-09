@@ -11,7 +11,8 @@ export function useRouter() {
 
   const navigate = (to) => {
     window.history.pushState(null, '', to)
-    setPath(to)
+    // Dispatch synthetic popstate so ALL useRouter instances update
+    window.dispatchEvent(new PopStateEvent('popstate'))
   }
 
   return { path, navigate }

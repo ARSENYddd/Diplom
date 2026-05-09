@@ -3,7 +3,7 @@ import { useRouter } from '../hooks/useRouter'
 const LINKS = [
   { label: 'Прогноз', href: '/forecast' },
   { label: 'Сигналы', href: '/signals' },
-  { label: 'Модели',  anchor: 'models' },
+  { label: 'Модели',  href: '/models' },
   { label: 'Цены',    anchor: 'pricing' },
 ]
 
