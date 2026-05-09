@@ -89,19 +89,22 @@ const MODEL_COLORS = {
 const sel = 'bg-[var(--surface)] border border-[var(--border)] rounded-lg text-sm text-warm focus:outline-none focus:border-amber-400 transition-colors px-2 py-1.5'
 
 const TIMEFRAMES = [
-  { key: '1h',  label: '1ч',   intraday: true,  maxDays: 729 },
-  { key: '6h',  label: '6ч',   intraday: true,  maxDays: 729 },
-  { key: '12h', label: '12ч',  intraday: true,  maxDays: 729 },
+  { key: '1h',  label: '1ч',   intraday: true,  defaultDays: 90,  maxDays: 729 },
+  { key: '6h',  label: '6ч',   intraday: true,  defaultDays: 180, maxDays: 729 },
+  { key: '12h', label: '12ч',  intraday: true,  defaultDays: 365, maxDays: 729 },
   { key: '1d',  label: '1д',   intraday: false },
   { key: '1wk', label: '1н',   intraday: false },
   { key: '1mo', label: '1мес', intraday: false },
 ]
 
-// For intraday: auto-set start date to N days ago (max yfinance 1h = 729 days)
-function intradayStartDate(maxDays = 729) {
+function daysAgo(n) {
   const d = new Date()
-  d.setDate(d.getDate() - maxDays + 1)
+  d.setDate(d.getDate() - n)
   return d.toISOString().slice(0, 10)
+}
+
+function today() {
+  return new Date().toISOString().slice(0, 10)
 }
 
 // ── Simple view: summary cards only ─────────────────────────────────────────
@@ -184,14 +187,11 @@ export default function ChartPanel({ panelId, onRemove, defaultParams = {} }) {
 
   const tf = TIMEFRAMES.find(t => t.key === interval) ?? TIMEFRAMES[3]
 
-  // When switching to intraday — auto-adjust start to within allowed range
+  // When switching to/between intraday intervals — always reset both dates
   useEffect(() => {
     if (tf.intraday) {
-      const minStart = intradayStartDate(tf.maxDays)
-      if (start < minStart) setStart(minStart)
-      // End date: cap to today for intraday
-      const today = new Date().toISOString().slice(0, 10)
-      if (end > today) setEnd(today)
+      setEnd(today())
+      setStart(daysAgo(tf.defaultDays))
     }
   }, [interval]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -273,28 +273,35 @@ export default function ChartPanel({ panelId, onRemove, defaultParams = {} }) {
         </div>
 
         {/* Dates */}
-        <input type="date" value={start} onChange={e => setStart(e.target.value)}
-          className={sel + ' w-36' + (tf.intraday ? ' opacity-40 cursor-not-allowed' : '')}
-          title="Начало периода"
-          disabled={tf.intraday} />
-        <span className="text-[var(--muted)] text-xs">→</span>
-        <input type="date" value={end} onChange={e => setEnd(e.target.value)}
-          className={sel + ' w-36' + (tf.intraday ? ' opacity-40 cursor-not-allowed' : '')}
-          title="Конец / дата прогноза"
-          disabled={tf.intraday} />
-
-        {/* Future badge */}
-        {isFuture && (
-          <span className="text-xs px-1.5 py-0.5 rounded bg-emerald-900/40 border border-emerald-700/60 text-emerald-300 flex-shrink-0">
-            📈 прогноз
-          </span>
-        )}
-
-        {/* Intraday info badge */}
-        {tf.intraday && (
-          <span className="text-xs px-1.5 py-0.5 rounded bg-blue-900/40 border border-blue-700/60 text-blue-300 flex-shrink-0">
-            ⚡ {tf.maxDays}д
-          </span>
+        {tf.intraday ? (
+          /* Intraday: editable but bounded, with a clear label */
+          <div className="flex items-center gap-1.5">
+            <input type="date" value={start} onChange={e => setStart(e.target.value)}
+              min={daysAgo(tf.maxDays)} max={end}
+              className={sel + ' w-36'} title="Начало периода" />
+            <span className="text-[var(--muted)] text-xs">→</span>
+            <input type="date" value={end} onChange={e => setEnd(e.target.value)}
+              min={start} max={today()}
+              className={sel + ' w-36'} title="Конец периода (не позже сегодня)" />
+            <span className="text-[11px] text-blue-400 bg-blue-900/30 border border-blue-700/40 px-2 py-1 rounded-lg flex-shrink-0"
+              title="Прогноз строится от последней доступной свечи">
+              ⚡ до текущего момента
+            </span>
+          </div>
+        ) : (
+          <>
+            <input type="date" value={start} onChange={e => setStart(e.target.value)}
+              className={sel + ' w-36'} title="Начало периода" />
+            <span className="text-[var(--muted)] text-xs">→</span>
+            <input type="date" value={end} onChange={e => setEnd(e.target.value)}
+              className={sel + ' w-36'} title="Конец / дата прогноза" />
+            {/* Future badge */}
+            {isFuture && (
+              <span className="text-xs px-1.5 py-0.5 rounded bg-emerald-900/40 border border-emerald-700/60 text-emerald-300 flex-shrink-0">
+                📈 прогноз
+              </span>
+            )}
+          </>
         )}
 
         {/* Mode toggle */}
