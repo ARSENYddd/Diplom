@@ -497,6 +497,217 @@ function BacktestPanel() {
   )
 }
 
+// ── Models data (module scope) ────────────────────────────────────────────────
+const MODELS = [
+  { icon: '📐', name: 'ARIMA',         mape: '1.82%', desc: 'Классическая авторегрессия. Хорошо ловит линейные тренды и сезонность.',                best: false },
+  { icon: '📊', name: 'GARCH',         mape: '2.14%', desc: 'Моделирует волатильность — незаменим для оценки риска.',                               best: false },
+  { icon: '🧠', name: 'LSTM',          mape: '1.34%', desc: 'Нейросеть с долгой памятью. Улавливает нелинейные паттерны.',                          best: false },
+  { icon: '⚡', name: 'ARIMA + LSTM',  mape: '0.96%', desc: 'Линейный ARIMA убирает тренд, LSTM обрабатывает остатки.',                             best: false },
+  { icon: '🔀', name: 'ARIMA + GRU',   mape: '0.98%', desc: 'Быстрее LSTM, сопоставимая точность. GRU-блок вместо LSTM.',                          best: false },
+  { icon: '🌊', name: 'GARCH + LSTM',  mape: '1.09%', desc: 'Совместное моделирование волатильности и уровня цены.',                                best: false },
+  { icon: '🔱', name: 'Triple Hybrid', mape: '0.87%', desc: 'ARIMA + GARCH + LSTM в одной архитектуре. Топ-2 по точности.',                        best: false },
+  { icon: '★',  name: 'Ensemble',      mape: '0.78%', desc: 'Взвешенное усреднение всех моделей. Наилучшая точность.',                              best: true  },
+]
+
+// ── ModelsSection ─────────────────────────────────────────────────────────────
+function ModelsSection() {
+  const headRef = useReveal()
+  const gridRef = useReveal()
+  return (
+    <div className="bg-[var(--surface)] border-y border-[var(--border)] py-20 px-12">
+      <div className="max-w-[1200px] mx-auto">
+        <div ref={headRef} className="reveal text-center mb-12">
+          <div className="text-[11px] font-bold tracking-[1.5px] uppercase text-amber-400 mb-4">
+            Арсенал моделей
+          </div>
+          <h2 className="text-[clamp(28px,3.5vw,44px)] font-extrabold text-white
+                         tracking-[-1px] leading-[1.15] mb-4">
+            От классики до<br />гибридных архитектур
+          </h2>
+          <p className="text-[16px] text-muted">
+            Каждая модель обучена на ценовых рядах. Ансамбль усредняет лучшие предсказания.
+          </p>
+        </div>
+        <div ref={gridRef} className="reveal grid grid-cols-4 gap-4">
+          {MODELS.map(m => (
+            <div key={m.name}
+              className={`rounded-xl p-5 border cursor-default
+                          transition-all duration-300 hover:-translate-y-1
+                ${m.best
+                  ? 'bg-amber-400/5 border-amber-400/30'
+                  : 'bg-black/30 border-[var(--border)] hover:border-amber-400/30'}`}>
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center
+                               text-base mb-3.5
+                ${m.best
+                  ? 'bg-amber-400/20 border border-amber-400/40'
+                  : 'bg-amber-400/10 border border-amber-400/20'}`}>
+                {m.icon}
+              </div>
+              <div className={`text-[13px] font-bold mb-1.5 ${m.best ? 'text-amber-400' : 'text-white'}`}>
+                {m.name}
+              </div>
+              <div className="text-[11px] text-muted leading-[1.6] mb-3">{m.desc}</div>
+              <div className={`text-[11px] flex items-center gap-1.5
+                ${m.best ? 'text-amber-300' : 'text-amber-400'}`}>
+                <span>◆</span> MAPE {m.mape}{m.best ? ' — лучший' : ''}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Testimonials data (module scope) ──────────────────────────────────────────
+const TESTIMONIALS = [
+  {
+    stars: 5, initials: 'АК', name: 'Алексей К.', role: 'Quant-аналитик',
+    text: '«Ensemble стабильно даёт MAPE <1% на S&P 500. Ни один другой открытый инструмент не приближается к этой точности.»',
+  },
+  {
+    stars: 5, initials: 'МВ', name: 'Михаил В.', role: 'Управляющий портфелем',
+    text: '«Backtesting с комиссией и проскальзыванием — наконец-то честный результат. Sharpe 1.87 — реально достижимо.»',
+  },
+  {
+    stars: 4, initials: 'ДС', name: 'Дмитрий С.', role: 'Частный инвестор',
+    text: '«Сигналы на MOEX работают лучше, чем ожидал. Triple Hybrid на нефтяниках — очень чёткие точки входа.»',
+  },
+]
+
+// ── Testimonials ──────────────────────────────────────────────────────────────
+function Testimonials() {
+  const headRef = useReveal()
+  const gridRef = useReveal()
+  return (
+    <div className="py-24 px-12">
+      <div className="max-w-[1200px] mx-auto">
+        <div ref={headRef} className="reveal text-center mb-12">
+          <div className="text-[11px] font-bold tracking-[1.5px] uppercase text-amber-400 mb-4">
+            Отзывы
+          </div>
+          <h2 className="text-[clamp(28px,3.5vw,44px)] font-extrabold text-white tracking-[-1px]">
+            Что говорят пользователи
+          </h2>
+        </div>
+        <div ref={gridRef} className="reveal grid grid-cols-3 gap-5">
+          {TESTIMONIALS.map(t => (
+            <div key={t.name}
+              className="bg-[var(--surface)] border border-[var(--border)] rounded-[14px] p-6
+                         hover:border-amber-400/20 transition-colors">
+              <div className="text-amber-400 text-[12px] mb-3">
+                {'★'.repeat(t.stars)}{'☆'.repeat(5 - t.stars)}
+              </div>
+              <p className="text-[13px] text-muted leading-[1.7] mb-4">{t.text}</p>
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center
+                                text-[12px] font-bold text-black
+                                bg-gradient-to-br from-amber-500 to-muted">
+                  {t.initials}
+                </div>
+                <div>
+                  <div className="text-[12px] font-semibold text-white">{t.name}</div>
+                  <div className="text-[10px] text-muted">{t.role}</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── CTABlock ──────────────────────────────────────────────────────────────────
+function CTABlock({ onLaunch }) {
+  const ref = useReveal()
+  return (
+    <div ref={ref}
+      className="reveal border-t border-[var(--border)] py-24 px-12 text-center relative overflow-hidden">
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+        style={{ width: '500px', height: '300px',
+          background: 'radial-gradient(ellipse, rgba(245,158,11,0.1) 0%, transparent 70%)' }} />
+      <h2 className="text-[clamp(32px,4vw,56px)] font-extrabold text-white
+                     tracking-[-1.5px] leading-[1.1] mb-5 relative">
+        Начни прогнозировать<br />
+        <span className="text-gradient-amber">прямо сейчас</span>
+      </h2>
+      <p className="text-[16px] text-muted mb-10 relative">
+        Без регистрации. Без кредитной карты. Просто выбери актив и модель.
+      </p>
+      <div className="flex items-center justify-center gap-6 mb-10 flex-wrap">
+        {['8 ML-моделей', '40+ инструментов', 'Торговые сигналы', 'Бэктест с Sharpe', 'Бесплатно'].map(f => (
+          <span key={f} className="flex items-center gap-1.5 text-[13px] text-muted">
+            <span className="text-amber-400 font-bold">✓</span> {f}
+          </span>
+        ))}
+      </div>
+      <button onClick={onLaunch}
+        className="inline-flex items-center gap-2 text-[16px] font-bold text-black
+                   bg-gradient-to-br from-amber-500 to-amber-400
+                   px-9 py-4 rounded-xl cursor-pointer relative
+                   shadow-[0_4px_24px_rgba(245,158,11,0.3)]
+                   hover:-translate-y-0.5 hover:shadow-[0_8px_32px_rgba(245,158,11,0.4)]
+                   transition-all">
+        Открыть платформу →
+      </button>
+    </div>
+  )
+}
+
+// ── Footer data (module scope) ────────────────────────────────────────────────
+const FOOTER_COLS = [
+  { title: 'Платформа', links: ['Прогноз', 'Торговые сигналы', 'Бэктест', 'Сравнение моделей'] },
+  { title: 'Модели',    links: ['ARIMA', 'GARCH', 'LSTM / GRU', 'Гибридные', 'Ensemble'] },
+  { title: 'Активы',    links: ['S&P 500, NASDAQ', 'MOEX (Сбер, Лукойл…)', 'Нефть Brent / WTI', 'Золото, Газ', 'Технологии (AAPL, NVDA…)'] },
+]
+
+// ── Footer ────────────────────────────────────────────────────────────────────
+function Footer() {
+  return (
+    <footer className="border-t border-[var(--border)] pt-16 pb-10 px-12">
+      <div className="max-w-[1200px] mx-auto">
+        <div className="grid grid-cols-[2fr_1fr_1fr_1fr] gap-12 mb-12">
+          <div>
+            <div className="flex items-center gap-2.5 mb-3.5">
+              <div className="w-[28px] h-[28px] rounded-[7px] flex items-center justify-center
+                              text-black font-extrabold text-[13px]
+                              bg-gradient-to-br from-amber-500 to-amber-400">
+                α
+              </div>
+              <span className="text-[16px] font-bold text-white">AlphaSignal</span>
+            </div>
+            <p className="text-[13px] text-muted leading-[1.6] mb-3.5">
+              ML-платформа для прогнозирования финансовых рынков. ARIMA, GARCH, LSTM, гибридные модели и ансамбли.
+            </p>
+            <p className="text-[11px] text-[var(--dim)] leading-[1.6]">
+              Не является инвестиционной рекомендацией. Все прогнозы носят информационный характер.
+              Прошлая доходность не гарантирует будущих результатов.
+            </p>
+          </div>
+          {FOOTER_COLS.map(col => (
+            <div key={col.title}>
+              <div className="text-[11px] font-bold tracking-[1px] uppercase text-[var(--dim)] mb-4">
+                {col.title}
+              </div>
+              {col.links.map(l => (
+                <a key={l} className="block text-[13px] text-muted mb-2.5 cursor-pointer hover:text-warm transition-colors">
+                  {l}
+                </a>
+              ))}
+            </div>
+          ))}
+        </div>
+        <div className="border-t border-[var(--border)] pt-6 flex items-center justify-between
+                        text-[12px] text-[var(--dim)]">
+          <span>© 2025 AlphaSignal. Дипломная работа МТУСИ.</span>
+          <span>Сделано с ♥ и TensorFlow</span>
+        </div>
+      </div>
+    </footer>
+  )
+}
+
 export default function LandingPage({ onLaunch }) {
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
@@ -546,6 +757,10 @@ export default function LandingPage({ onLaunch }) {
         ]}
         panel={<BacktestPanel />}
       />
+      <ModelsSection />
+      <Testimonials />
+      <CTABlock onLaunch={onLaunch} />
+      <Footer />
     </div>
   )
 }
