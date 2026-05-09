@@ -10,6 +10,8 @@ export default {
           400: '#f59e0b',
           500: '#d97706',
           600: '#b45309',
+          700: '#92400e',
+          900: '#451a03',
         },
         surface: { DEFAULT: '#1a1710', 2: '#111008' },
         border:  { DEFAULT: '#2a2418' },
@@ -45,8 +47,8 @@ export default {
           '100%': { transform: 'translateX(200%)' },
         },
         scanline: {
-          '0%':   { top: '-2px' },
-          '100%': { top: '100%' },
+          '0%':   { transform: 'translateY(-2px)' },
+          '100%': { transform: 'translateY(100%)' },
         },
         'scroll-ticker': {
           from: { transform: 'translateX(0)' },
