@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import Header from './components/Header'
+import UnifiedNav from './components/UnifiedNav'
 import ChartPanel from './components/ChartPanel'
 import SignalsPage from './components/SignalsPage'
 import LandingPage from './components/LandingPage'
@@ -16,18 +16,18 @@ export default function App() {
   ])
   const [layout, setLayout] = useState('single')
 
-  // Show landing page
+  const openPricing = () => setPricingOpen(true)
+
+  // Landing page
   if (path === '/') {
     return (
       <>
-        <LandingPage
-          onOpenPricing={() => setPricingOpen(true)}
-          onNavigate={navigate}
-        />
+        <UnifiedNav onOpenPricing={openPricing} />
+        <LandingPage onOpenPricing={openPricing} onNavigate={navigate} />
         <PricingModal
           open={pricingOpen}
           onClose={() => setPricingOpen(false)}
-          onStart={() => navigate('/forecast')}
+          onStart={() => { setPricingOpen(false); navigate('/forecast') }}
         />
       </>
     )
@@ -55,7 +55,10 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
-      <Header page={path} onNavigate={navigate} />
+      <UnifiedNav onOpenPricing={openPricing} />
+
+      {/* offset for fixed nav */}
+      <div className="h-[60px] flex-shrink-0" />
 
       {/* Forecast toolbar */}
       {path === '/forecast' && (
@@ -67,16 +70,16 @@ export default function App() {
           {panels.length > 1 && (
             <div className="flex items-center gap-1 bg-[var(--surface)] rounded-lg p-1 border border-[var(--border)]">
               {[
-                { key: 'double', icon: (
+                { key: 'double', title: '2 колонки', icon: (
                   <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor">
                     <rect x="1" y="1" width="6" height="14" rx="1"/><rect x="9" y="1" width="6" height="14" rx="1"/>
                   </svg>
-                ), title: '2 колонки' },
-                { key: 'single', icon: (
+                )},
+                { key: 'single', title: 'Одна колонка', icon: (
                   <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor">
                     <rect x="1" y="1" width="14" height="14" rx="1"/>
                   </svg>
-                ), title: 'Одна колонка' },
+                )},
               ].map(({ key, icon, title }) => (
                 <button key={key} title={title} onClick={() => setLayout(key)}
                   className={`p-1.5 rounded transition-all
@@ -90,12 +93,12 @@ export default function App() {
           )}
 
           <div className="flex items-center gap-2">
-            <span className="text-[12px] text-muted">Добавить график:</span>
+            <span className="text-[12px] text-muted">Добавить:</span>
             {[
               { label: 'S&P 500',  defaults: { ticker: '^GSPC',   model: 'arima_lstm',    start: '2018-01-01', end: '2024-01-01' } },
-              { label: 'SBER.ME',  defaults: { ticker: 'SBER.ME', model: 'arima_lstm',    start: '2018-01-01', end: '2024-01-01' } },
-              { label: 'LKOH.ME', defaults: { ticker: 'LKOH.ME', model: 'triple_hybrid', start: '2018-01-01', end: '2024-01-01' } },
-              { label: 'Brent',    defaults: { ticker: 'BZ=F',   model: 'garch',          start: '2018-01-01', end: '2024-01-01' } },
+              { label: 'SBER',     defaults: { ticker: 'SBER.ME', model: 'arima_lstm',    start: '2018-01-01', end: '2024-01-01' } },
+              { label: 'LKOH',     defaults: { ticker: 'LKOH.ME', model: 'triple_hybrid', start: '2018-01-01', end: '2024-01-01' } },
+              { label: 'Brent',    defaults: { ticker: 'BZ=F',    model: 'garch',          start: '2018-01-01', end: '2024-01-01' } },
               { label: 'Пустой',   defaults: {} },
             ].map(({ label, defaults }) => (
               <button key={label} onClick={() => addPanel(defaults)}
@@ -125,6 +128,12 @@ export default function App() {
           </div>
         </main>
       )}
+
+      <PricingModal
+        open={pricingOpen}
+        onClose={() => setPricingOpen(false)}
+        onStart={() => { setPricingOpen(false); navigate('/forecast') }}
+      />
     </div>
   )
 }

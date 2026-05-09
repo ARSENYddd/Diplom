@@ -10,8 +10,8 @@ import DrawingToolbar from './DrawingToolbar'
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null
   return (
-    <div className="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-xs shadow-xl max-w-[220px]">
-      <p className="text-slate-400 mb-1 font-medium">{label}</p>
+    <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg px-3 py-2 text-xs shadow-xl max-w-[220px]">
+      <p className="text-muted mb-1 font-medium">{label}</p>
       {payload.map(p => p.value != null && (
         <p key={p.dataKey} style={{ color: p.color }} className="font-medium">
           {p.name}: {Number(p.value).toFixed(2)}
@@ -39,7 +39,7 @@ function Scrollbar({ vsIdx, veIdx, totalLen, onRange, onZoom }) {
   return (
     <div className="px-1 space-y-0.5">
       {/* Info row */}
-      <div className="flex justify-between text-[10px] text-slate-600">
+      <div className="flex justify-between text-[10px] text-muted/60">
         <span>{`${vsIdx + 1} – ${veIdx + 1}`}</span>
         <span>{`из ${totalLen} баров (${pct}%)`}</span>
       </div>
@@ -49,7 +49,7 @@ function Scrollbar({ vsIdx, veIdx, totalLen, onRange, onZoom }) {
         <button
           onClick={() => onZoom('out')}
           disabled={!isZoomed}
-          className="flex-shrink-0 w-6 h-6 rounded bg-slate-800 border border-slate-600 text-slate-400
+          className="flex-shrink-0 w-6 h-6 rounded bg-[var(--surface)] border border-[var(--border)] text-muted
                      hover:text-white hover:border-slate-500 disabled:opacity-30 disabled:cursor-default
                      flex items-center justify-center text-sm font-bold transition-all"
           title="Уменьшить масштаб"
@@ -66,13 +66,13 @@ function Scrollbar({ vsIdx, veIdx, totalLen, onRange, onZoom }) {
             onRange(ns, ns + range)
           }}
           className="flex-1 h-2 cursor-pointer"
-          style={{ accentColor: '#6366f1' }}
+          style={{ accentColor: '#f59e0b' }}
         />
 
         <button
           onClick={() => onZoom('in')}
           disabled={range <= 10}
-          className="flex-shrink-0 w-6 h-6 rounded bg-slate-800 border border-slate-600 text-slate-400
+          className="flex-shrink-0 w-6 h-6 rounded bg-[var(--surface)] border border-[var(--border)] text-muted
                      hover:text-white hover:border-slate-500 disabled:opacity-30 disabled:cursor-default
                      flex items-center justify-center text-sm font-bold transition-all"
           title="Увеличить масштаб"
@@ -94,23 +94,23 @@ const ChartCore = memo(function ChartCore({
   return (
     <ResponsiveContainer width="100%" height={compact ? 280 : 380}>
       <ComposedChart data={visibleData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+        <CartesianGrid strokeDasharray="3 3" stroke="#2a2418" />
         <XAxis
           dataKey="date" ticks={xTicks}
-          tick={{ fill: '#94a3b8', fontSize: 11 }}
-          axisLine={{ stroke: '#334155' }} tickLine={false}
+          tick={{ fill: '#7a6a4a', fontSize: 11 }}
+          axisLine={{ stroke: '#2a2418' }} tickLine={false}
         />
         <YAxis
           domain={yDomain}
-          tick={{ fill: '#94a3b8', fontSize: 11 }}
-          axisLine={{ stroke: '#334155' }} tickLine={false}
+          tick={{ fill: '#7a6a4a', fontSize: 11 }}
+          axisLine={{ stroke: '#2a2418' }} tickLine={false}
           tickFormatter={v => Math.abs(v) >= 1000 ? (v / 1000).toFixed(1) + 'k' : Number(v).toFixed(0)}
           width={68}
         />
         <Tooltip content={<CustomTooltip />} />
         <Legend
           wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
-          formatter={val => <span style={{ color: '#cbd5e1' }}>{val}</span>}
+          formatter={val => <span style={{ color: '#e8d5a3' }}>{val}</span>}
         />
 
         {futureSplitDate && (
@@ -120,26 +120,26 @@ const ChartCore = memo(function ChartCore({
           />
         )}
 
-        <Line type="monotone" dataKey="Реальные"
-          stroke="#60a5fa" strokeWidth={1.5} dot={false}
-          activeDot={{ r: 4 }} connectNulls={false} isAnimationActive={false} />
+        <Line type="monotoneX" dataKey="Реальные"
+          stroke="#e8d5a3" strokeWidth={2} dot={false}
+          activeDot={{ r: 4, fill: '#e8d5a3' }} connectNulls={true} isAnimationActive={false} />
 
-        <Line type="monotone" dataKey="Прогноз"
-          stroke="#f87171" strokeWidth={1.5} dot={false}
-          strokeDasharray="5 2" activeDot={{ r: 4 }} connectNulls={false} isAnimationActive={false} />
+        <Line type="linear" dataKey="Прогноз"
+          stroke="#f59e0b" strokeWidth={2} dot={false}
+          strokeDasharray="6 3" activeDot={{ r: 4, fill: '#f59e0b' }} connectNulls={true} isAnimationActive={false} />
 
         {hasFuture && (
-          <Line type="monotone" dataKey="Базовый"
-            stroke="#60a5fa" strokeWidth={2.5} dot={false}
-            strokeDasharray="6 3" activeDot={{ r: 5 }} connectNulls={false} isAnimationActive={false} />
+          <Line type="linear" dataKey="Базовый"
+            stroke="#f59e0b" strokeWidth={2.5} dot={false}
+            activeDot={{ r: 5, fill: '#f59e0b' }} connectNulls={true} isAnimationActive={false} />
         )}
 
         {hasFuture && showScenarios && scenarios.map(sc =>
           !hiddenScenarios.has(sc.name) && (
-            <Line key={sc.name} type="monotone" dataKey={sc.name}
+            <Line key={sc.name} type="linear" dataKey={sc.name}
               stroke={sc.color} strokeWidth={1.5} dot={false}
-              strokeDasharray="4 3" strokeOpacity={0.75}
-              activeDot={{ r: 4 }} connectNulls={false} isAnimationActive={false} />
+              strokeDasharray="4 3" strokeOpacity={0.7}
+              activeDot={{ r: 4 }} connectNulls={true} isAnimationActive={false} />
           )
         )}
 
@@ -405,8 +405,8 @@ export default function ForecastChart({ data, compact = false, signals = null })
 
   // ── Early return AFTER all hooks ───────────────────────────────────────────
   if (!data) return (
-    <div className={`flex items-center justify-center ${compact ? 'h-48' : 'bg-slate-900 border border-slate-700 rounded-xl p-5 h-72'}`}>
-      <p className="text-slate-500 text-sm">Запустите прогноз для отображения графика</p>
+    <div className={`flex items-center justify-center ${compact ? 'h-48' : 'bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5 h-72'}`}>
+      <p className="text-muted text-sm">Запустите прогноз для отображения графика</p>
     </div>
   )
 
@@ -430,7 +430,7 @@ export default function ForecastChart({ data, compact = false, signals = null })
             {zoomPct < 99 && (
               <button
                 onClick={() => { setViewStart(0); setViewEnd(totalLen - 1) }}
-                className="text-xs px-2 py-1 rounded bg-slate-800 border border-slate-600 text-slate-400 hover:text-white hover:border-slate-500 transition-all flex items-center gap-1"
+                className="text-xs px-2 py-1 rounded bg-[var(--surface)] border border-[var(--border)] text-muted hover:text-white hover:border-slate-500 transition-all flex items-center gap-1"
                 title="Сбросить масштаб"
               >
                 <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
@@ -456,13 +456,13 @@ export default function ForecastChart({ data, compact = false, signals = null })
           {/* Сценарии */}
           {hasFuture && scenarios.length > 0 && (
             <>
-              <span className="text-xs text-slate-500">Сценарии:</span>
+              <span className="text-xs text-muted">Сценарии:</span>
               <button
                 onClick={() => setShowScenarios(v => !v)}
                 className={`text-xs px-2 py-0.5 rounded border transition-all ${
                   showScenarios
                     ? 'bg-indigo-600/30 border-indigo-500 text-indigo-300'
-                    : 'border-slate-600 text-slate-500 hover:border-slate-500'
+                    : 'border-slate-600 text-muted hover:border-slate-500'
                 }`}
               >
                 {showScenarios ? 'Скрыть все' : 'Показать все'}
@@ -474,7 +474,7 @@ export default function ForecastChart({ data, compact = false, signals = null })
                   <button key={sc.name} onClick={() => toggleScenario(sc.name)}
                     title={meta.desc}
                     className={`text-xs px-2 py-0.5 rounded border transition-all flex items-center gap-1 ${
-                      hidden ? 'border-slate-700 text-slate-600' : 'border-slate-600 text-slate-300 hover:border-slate-400'
+                      hidden ? 'border-slate-700 text-muted/60' : 'border-slate-600 text-slate-300 hover:border-slate-400'
                     }`}
                     style={{ borderColor: hidden ? undefined : sc.color + '88' }}
                   >
@@ -496,7 +496,7 @@ export default function ForecastChart({ data, compact = false, signals = null })
               className={`text-xs px-2 py-0.5 rounded border transition-all flex items-center gap-1.5 ${
                 showSignals
                   ? 'bg-emerald-900/30 border-emerald-700/60 text-emerald-300'
-                  : 'border-slate-600 text-slate-500 hover:border-slate-500'
+                  : 'border-slate-600 text-muted hover:border-slate-500'
               }`}
             >
               <span className={`w-2 h-2 rounded-full flex-shrink-0 ${showSignals ? 'bg-emerald-400' : 'bg-slate-600'}`} />
@@ -514,7 +514,7 @@ export default function ForecastChart({ data, compact = false, signals = null })
       />
 
       {/* Hint */}
-      <p className="text-xs text-slate-600 flex items-center gap-1">
+      <p className="text-xs text-muted/60 flex items-center gap-1">
         <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
           <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35" strokeLinecap="round"/>
         </svg>
@@ -561,7 +561,7 @@ export default function ForecastChart({ data, compact = false, signals = null })
       )}
 
       {/* Legend */}
-      <div className="flex gap-4 flex-wrap text-xs text-slate-500">
+      <div className="flex gap-4 flex-wrap text-xs text-muted">
         <span><span className="text-blue-400">━</span> Реальные цены</span>
         <span><span className="text-red-400">╌</span> Прогноз (бэктест)</span>
         {hasFuture && <span><span className="text-blue-400">╌ ╌</span> Базовый сценарий</span>}
@@ -579,7 +579,7 @@ export default function ForecastChart({ data, compact = false, signals = null })
             <span><span className="text-red-400">●</span> SELL сигнал</span>
           </>
         )}
-        <span className="ml-auto text-slate-600">↑ Инструменты рисования</span>
+        <span className="ml-auto text-muted/60">↑ Инструменты рисования</span>
       </div>
     </div>
   )

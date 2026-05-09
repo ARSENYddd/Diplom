@@ -1,6 +1,9 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import ForecastChart from './ForecastChart'
 import { fetchForecast, fetchBacktest } from '../api/client'
+import {
+  LineChart, Line, ResponsiveContainer, Tooltip,
+} from 'recharts'
 
 const TICKER_GROUPS = [
   {
@@ -88,15 +91,106 @@ const MODEL_COLORS = {
 
 const sel = 'bg-[var(--surface)] border border-[var(--border)] rounded-lg text-sm text-warm focus:outline-none focus:border-amber-400 transition-colors px-2 py-1.5'
 
+// ── Simple view: cards + mini sparkline ─────────────────────────────────────
+function SimpleView({ data, tickerLabel, modelLabel }) {
+  const sparkData = useMemo(() => {
+    if (!data) return []
+    const last = Math.min(data.dates.length, 60)
+    const from = data.dates.length - last
+    return data.dates.slice(from).map((d, i) => ({
+      date: d,
+      price: data.actual?.[from + i] ?? null,
+      forecast: data.predicted?.[from + i] ?? null,
+    }))
+  }, [data])
+
+  if (!data) return (
+    <div className="flex items-center justify-center h-48 text-muted text-sm">
+      Запустите прогноз для отображения
+    </div>
+  )
+
+  // Last real price
+  const realPrices = data.actual?.filter(v => v != null) ?? []
+  const currentPrice = realPrices[realPrices.length - 1] ?? null
+
+  // Last forecast value
+  const predicted = data.predicted ?? []
+  const lastForecast = predicted[predicted.length - 1] ?? null
+
+  const changePct = currentPrice && lastForecast
+    ? ((lastForecast - currentPrice) / currentPrice) * 100
+    : null
+  const isUp = changePct !== null && changePct >= 0
+
+  const fmt = v => {
+    if (v == null) return '—'
+    return v >= 1000 ? v.toLocaleString('ru', { maximumFractionDigits: 0 }) : v.toFixed(2)
+  }
+
+  return (
+    <div className="p-4 space-y-4">
+      {/* Cards */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-[var(--bg)] border border-[var(--border)] rounded-xl p-4">
+          <p className="text-[11px] text-muted uppercase tracking-[1px] mb-1">Текущая цена</p>
+          <p className="text-[22px] font-bold text-warm">{fmt(currentPrice)}</p>
+          <p className="text-[11px] text-muted mt-1">{tickerLabel}</p>
+        </div>
+        <div className="bg-[var(--bg)] border border-[var(--border)] rounded-xl p-4">
+          <p className="text-[11px] text-muted uppercase tracking-[1px] mb-1">Прогноз</p>
+          <p className="text-[22px] font-bold text-amber-400">{fmt(lastForecast)}</p>
+          <p className="text-[11px] text-muted mt-1">{modelLabel}</p>
+        </div>
+        <div className={`rounded-xl p-4 border ${isUp ? 'bg-green-950/30 border-green-800/40' : 'bg-red-950/30 border-red-800/40'}`}>
+          <p className="text-[11px] text-muted uppercase tracking-[1px] mb-1">Изменение</p>
+          <p className={`text-[22px] font-bold ${isUp ? 'text-green-400' : 'text-red-400'}`}>
+            {changePct !== null ? `${isUp ? '+' : ''}${changePct.toFixed(2)}%` : '—'}
+          </p>
+          <p className="text-[11px] text-muted mt-1">{isUp ? '↑ Рост' : '↓ Снижение'}</p>
+        </div>
+      </div>
+
+      {/* MAPE */}
+      {data.metrics?.mape && (
+        <div className="flex items-center gap-2 text-[12px] text-muted">
+          <span>Точность модели:</span>
+          <span className="text-green-400 font-semibold">MAPE {data.metrics.mape}%</span>
+          <span className="text-muted/60">· MAE {data.metrics.mae} · RMSE {data.metrics.rmse}</span>
+        </div>
+      )}
+
+      {/* Mini sparkline */}
+      <div className="bg-[var(--bg)] border border-[var(--border)] rounded-xl p-3">
+        <p className="text-[11px] text-muted mb-2">Последние 60 точек</p>
+        <ResponsiveContainer width="100%" height={120}>
+          <LineChart data={sparkData} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
+            <Tooltip
+              contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11 }}
+              labelStyle={{ color: '#7a6a4a' }}
+              formatter={(v, name) => [v?.toFixed(2), name]}
+            />
+            <Line type="monotone" dataKey="price" stroke="#e8d5a3" strokeWidth={1.5}
+              dot={false} connectNulls={true} isAnimationActive={false} name="Реальные" />
+            <Line type="monotone" dataKey="forecast" stroke="#f59e0b" strokeWidth={1.5}
+              dot={false} connectNulls={true} isAnimationActive={false} name="Прогноз" strokeDasharray="5 2" />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  )
+}
+
 export default function ChartPanel({ panelId, onRemove, defaultParams = {} }) {
   const [ticker,  setTicker]  = useState(defaultParams.ticker  ?? '^GSPC')
   const [model,   setModel]   = useState(defaultParams.model   ?? 'arima_lstm')
   const [start,   setStart]   = useState(defaultParams.start   ?? '2018-01-01')
   const [end,     setEnd]     = useState(defaultParams.end     ?? '2024-01-01')
 
-  const [data,    setData]    = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [error,   setError]   = useState(null)
+  const [data,     setData]     = useState(null)
+  const [loading,  setLoading]  = useState(false)
+  const [error,    setError]    = useState(null)
+  const [viewMode, setViewMode] = useState('simple') // 'simple' | 'advanced'
 
   // Торговые сигналы — подгружаются автоматически после прогноза
   const [signals, setSignals] = useState(null)
@@ -179,6 +273,22 @@ export default function ChartPanel({ panelId, onRemove, defaultParams = {} }) {
           </span>
         )}
 
+        {/* Mode toggle */}
+        <div className="flex items-center gap-0.5 bg-[var(--bg)] rounded-lg p-0.5 border border-[var(--border)]">
+          {[
+            { key: 'simple',   label: 'Сводка' },
+            { key: 'advanced', label: 'График' },
+          ].map(({ key, label }) => (
+            <button key={key} onClick={() => setViewMode(key)}
+              className={`text-[11px] font-medium px-2.5 py-1 rounded-md transition-all
+                ${viewMode === key
+                  ? 'bg-amber-400 text-black'
+                  : 'text-muted hover:text-warm'}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+
         {/* Spacer */}
         <div className="flex-1" />
 
@@ -236,9 +346,19 @@ export default function ChartPanel({ panelId, onRemove, defaultParams = {} }) {
         </div>
       )}
 
-      {/* ── Chart ── */}
-      <div className="flex-1 min-w-0 p-2">
-        <ForecastChart data={data} compact signals={signals} />
+      {/* ── Content ── */}
+      <div className="flex-1 min-w-0">
+        {viewMode === 'simple' ? (
+          <SimpleView
+            data={data}
+            tickerLabel={tickerLabel}
+            modelLabel={MODELS.find(m => m.value === model)?.label ?? model}
+          />
+        ) : (
+          <div className="p-2">
+            <ForecastChart data={data} compact signals={signals} />
+          </div>
+        )}
       </div>
     </div>
   )

@@ -1,5 +1,5 @@
 // project/frontend/src/components/LandingPage.jsx
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 const TICKERS = [
@@ -15,67 +15,7 @@ const TICKERS = [
   { symbol: 'WTI',     price: '79.22',    change: '−0.22%', up: false },
 ]
 
-// ── Nav ───────────────────────────────────────────────────────────────────────
-const NAV_LINKS = [
-  { label: 'Прогноз', href: '/forecast' },
-  { label: 'Сигналы', href: '/signals' },
-  { label: 'Модели',  href: '#models' },
-  { label: 'Цены',    href: '#pricing' },
-]
-
-function Nav({ onOpenPricing, onNavigate }) {
-  const handleLink = (e, href) => {
-    if (href.startsWith('/')) {
-      e.preventDefault()
-      onNavigate(href)
-    }
-    // anchor links (#models, #pricing) behave normally
-  }
-
-  return (
-    <nav className="fixed top-0 left-0 right-0 z-50 flex items-center gap-6 px-12 h-[60px]
-                    bg-[#0d0b08]/85 border-b border-[var(--border)] backdrop-blur-xl">
-      <button
-        onClick={() => onNavigate('/')}
-        className="flex items-center gap-2.5 text-white font-bold text-[17px] tracking-tight"
-      >
-        <div className="w-[30px] h-[30px] rounded-[7px] flex items-center justify-center
-                        text-black font-extrabold text-[14px]
-                        bg-gradient-to-br from-amber-500 to-amber-400
-                        shadow-[0_0_14px_rgba(245,158,11,0.4)] animate-pulse-amber">
-          α
-        </div>
-        AlphaSignal
-      </button>
-
-      <div className="flex items-center gap-1 ml-6">
-        {NAV_LINKS.map(({ label, href }) => (
-          <a
-            key={label}
-            href={href}
-            onClick={e => handleLink(e, href)}
-            className="text-[13px] text-muted px-3 py-1.5 rounded-md
-                       hover:text-warm transition-colors no-underline"
-          >
-            {label}
-          </a>
-        ))}
-      </div>
-
-      <div className="ml-auto flex items-center gap-2.5">
-        <span className="text-[13px] text-muted px-3 cursor-pointer hover:text-warm transition-colors">
-          Войти
-        </span>
-        <button onClick={onOpenPricing}
-          className="text-[13px] font-semibold text-black bg-amber-400
-                     px-4 py-1.5 rounded-lg cursor-pointer
-                     hover:bg-amber-300 hover:scale-[1.02] transition-all">
-          Попробовать бесплатно →
-        </button>
-      </div>
-    </nav>
-  )
-}
+// Nav is now UnifiedNav, rendered by App
 
 // ── TickerTape ────────────────────────────────────────────────────────────────
 function TickerTape() {
@@ -531,12 +471,206 @@ const MODELS = [
   { icon: '★',  name: 'Ensemble',      mape: '0.78%', desc: 'Взвешенное усреднение всех моделей. Наилучшая точность.',                              best: true  },
 ]
 
+const MODEL_DETAILS = {
+  'ARIMA': {
+    full: 'AutoRegressive Integrated Moving Average — классическая статистическая модель временных рядов. Разделяет сигнал на авторегрессионную, интегрирующую и скользящей-средней компоненты.',
+    when: 'Стабильные тренды без резких выбросов. Рынки с выраженным направленным движением.',
+    tags: ['Трендовые рынки', 'Стабильные активы', 'Малые данные'],
+    assets: ['S&P 500', 'Dow Jones', 'Сбербанк', 'Норникель'],
+    speed: 'Быстро',
+    pros: ['Интерпретируем — понятно что и почему', 'Работает на малых датасетах (от 1 года)', 'Очень быстрый расчёт'],
+    cons: ['Только линейные зависимости', 'Не учитывает волатильность', 'Плохо на кризисных данных'],
+    notFor: 'Острые новостные реакции, геополитические шоки, сырьевые рынки с кластерной волатильностью.',
+  },
+  'GARCH': {
+    full: 'Generalized AutoRegressive Conditional Heteroskedasticity — модель для прогнозирования условной дисперсии (волатильности). Строит прогноз цены через моделирование рисков.',
+    when: 'Активы с переменной волатильностью и кластеризацией рисков. Сырьё, валюты, газ.',
+    tags: ['Высокая волатильность', 'Риск-менеджмент', 'Сырьё'],
+    assets: ['Brent', 'WTI', 'Газ (NG=F)', 'Газпром'],
+    speed: 'Быстро',
+    pros: ['Точно передаёт кластеры волатильности', 'Лучший для риск-оценки', 'Устойчив к выбросам'],
+    cons: ['Не даёт прямой прогноз цены', 'Хуже на тихих трендовых рынках', 'Сложнее интерпретировать'],
+    notFor: 'Тихие, трендовые рынки без скачков волатильности (например, стабильные голубые фишки).',
+  },
+  'LSTM': {
+    full: 'Long Short-Term Memory — рекуррентная нейросеть с механизмом памяти. Улавливает долгосрочные зависимости в последовательных данных, недоступные классическим моделям.',
+    when: 'Нелинейные паттерны, долгосрочные зависимости, технологические акции с momentum-эффектом.',
+    tags: ['Нелинейность', 'Технологии', 'Долгосрочные паттерны'],
+    assets: ['NVIDIA', 'Apple', 'Tesla', 'NASDAQ'],
+    speed: 'Среднее',
+    pros: ['Улавливает сложные нелинейные паттерны', 'Адаптируется к смене режимов рынка', 'Лучший среди чистых нейросетей'],
+    cons: ['Требует больших данных (2+ лет)', '"Чёрный ящик" — сложно интерпретировать', 'Дольше обучается'],
+    notFor: 'Малые датасеты (менее 1 года). Очень зашумлённые ряды без паттернов.',
+  },
+  'ARIMA+LSTM': {
+    full: 'Гибрид: ARIMA захватывает линейный тренд и автокорреляцию, LSTM дообучается на остатках — нелинейной компоненте, которую классика не видит.',
+    when: 'Смешанные рынки: есть тренд и нелинейность одновременно. Фондовые индексы, голубые фишки.',
+    tags: ['Смешанные рынки', 'Индексы', 'Баланс точности'],
+    assets: ['S&P 500', 'Сбербанк', 'Лукойл', 'Яндекс'],
+    speed: 'Среднее',
+    pros: ['Баланс интерпретируемости и мощи', 'Стабильный топ-3 по MAPE', 'Хорошо обобщает на новых данных'],
+    cons: ['Два этапа обучения', 'Сложнее в настройке гиперпараметров'],
+    notFor: 'Чисто хаотичные ряды без линейной компоненты (случайное блуждание).',
+  },
+  'ARIMA+GRU': {
+    full: 'Аналог ARIMA+LSTM, но вместо LSTM используется GRU (Gated Recurrent Unit) — более лёгкая архитектура с меньшим количеством параметров при сопоставимой точности.',
+    when: 'Те же задачи что и ARIMA+LSTM, но когда важна скорость или меньше данных.',
+    tags: ['Скорость', 'Эффективность', 'Нефтяной сектор'],
+    assets: ['Лукойл', 'Роснефть', 'Норникель', 'МТС'],
+    speed: 'Среднее',
+    pros: ['Быстрее ARIMA+LSTM при схожей точности', 'Меньше параметров — меньше переобучение', 'Хорош на данных среднего объёма'],
+    cons: ['Чуть менее мощный чем LSTM на сложных паттернах'],
+    notFor: 'Очень долгосрочные зависимости (>5 лет), где LSTM превосходит GRU.',
+  },
+  'GARCH+LSTM': {
+    full: 'GARCH моделирует волатильность и встраивает её как признак в LSTM. Это позволяет нейросети явно учитывать изменения риска при прогнозировании цены.',
+    when: 'Высоковолатильные активы: сырьё, нефть, газ, акции с новостными скачками.',
+    tags: ['Волатильные активы', 'Сырьё', 'Risk-aware'],
+    assets: ['Brent', 'WTI', 'Газ', 'Сургутнефтегаз'],
+    speed: 'Среднее',
+    pros: ['Объединяет риск-моделирование и нелинейность', 'Лучший для сырьевых активов', 'Устойчивее к скачкам'],
+    cons: ['Два этапа (GARCH → LSTM) усложняют пайплайн', 'Чувствителен к выбору окна GARCH'],
+    notFor: 'Стабильные активы без волатильных кластеров, где преимущество GARCH не реализуется.',
+  },
+  'Triple Hybrid': {
+    full: 'ARIMA + GARCH + LSTM в единой архитектуре: линейный тренд + волатильность + нелинейные паттерны. Самая комплексная модель после Ensemble.',
+    when: 'Сложные рынки со множеством режимов: тренд, боковик, волатильность. Российские акции.',
+    tags: ['Комплексные рынки', 'MOEX', 'Многорежимность'],
+    assets: ['Газпром', 'Татнефть', 'Магнит', 'ВТБ'],
+    speed: 'Медленно',
+    pros: ['Охватывает линейное, волатильное и нелинейное', 'Топ-2 по точности после Ensemble', 'Робастный на разных режимах рынка'],
+    cons: ['Самая медленная одиночная модель', 'Много гиперпараметров', 'Риск переобучения на малых датасетах'],
+    notFor: 'Быстрый прогноз в реальном времени. Малые данные (менее 2 лет).',
+  },
+  'Ensemble': {
+    full: 'Взвешенное усреднение предсказаний всех 7 моделей. Веса подбираются по валидационной ошибке: точные модели получают больший вес.',
+    when: 'Когда важна максимальная точность. Финальный прогноз перед принятием решения.',
+    tags: ['Максимальная точность', 'Любые активы', 'Финальный прогноз'],
+    assets: ['Все инструменты', 'S&P 500', 'Сбербанк', 'Brent'],
+    speed: 'Медленно',
+    pros: ['Лучший MAPE 0.78% — #1 среди всех', 'Усредняет ошибки отдельных моделей', 'Работает на любых активах'],
+    cons: ['Самый медленный (запускает все 7 моделей)', 'Сложнее объяснить прогноз', 'Тяжелее по ресурсам'],
+    notFor: 'Интерактивный анализ в реальном времени. Используй когда важна точность, а не скорость.',
+  },
+}
+
+// ── ModelModal ─────────────────────────────────────────────────────────────────
+function ModelModal({ model, details, onClose }) {
+  if (!model || !details) return null
+
+  const speedColor = { 'Быстро': 'text-green-400', 'Среднее': 'text-amber-400', 'Медленно': 'text-red-400' }[details.speed] ?? 'text-muted'
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+      onClick={onClose}>
+      <div className="relative w-full max-w-2xl bg-[var(--surface)] border border-[var(--border)]
+                      rounded-2xl p-8 animate-fade-up shadow-2xl max-h-[90vh] overflow-y-auto"
+        onClick={e => e.stopPropagation()}>
+
+        {/* Close */}
+        <button onClick={onClose}
+          className="absolute top-4 right-4 text-muted hover:text-warm transition-colors text-[22px] leading-none">
+          ×
+        </button>
+
+        {/* Header */}
+        <div className="flex items-start gap-4 mb-6">
+          <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl flex-shrink-0
+            ${model.best ? 'bg-amber-400/20 border border-amber-400/40' : 'bg-amber-400/10 border border-amber-400/20'}`}>
+            {model.icon}
+          </div>
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className={`text-[20px] font-bold ${model.best ? 'text-amber-400' : 'text-white'}`}>
+                {model.name}
+              </h3>
+              {model.best && (
+                <span className="text-[10px] font-bold tracking-[1px] uppercase bg-amber-400 text-black px-2 py-0.5 rounded-full">
+                  Лучший
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-3 text-[12px]">
+              <span className="text-amber-400 font-semibold">MAPE {model.mape}</span>
+              <span className={`font-medium ${speedColor}`}>⚡ {details.speed}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* What */}
+        <p className="text-[14px] text-warm leading-[1.7] mb-5">{details.full}</p>
+
+        {/* Tags */}
+        <div className="flex flex-wrap gap-2 mb-5">
+          {details.tags.map(t => (
+            <span key={t} className="text-[11px] font-semibold bg-amber-400/10 border border-amber-400/25 text-amber-300 px-2.5 py-1 rounded-full">
+              {t}
+            </span>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 mb-5">
+          {/* When */}
+          <div className="bg-[var(--bg)] border border-[var(--border)] rounded-xl p-4">
+            <p className="text-[11px] font-bold uppercase tracking-[1px] text-muted mb-2">Лучше всего для</p>
+            <p className="text-[13px] text-warm leading-[1.6]">{details.when}</p>
+          </div>
+          {/* Assets */}
+          <div className="bg-[var(--bg)] border border-[var(--border)] rounded-xl p-4">
+            <p className="text-[11px] font-bold uppercase tracking-[1px] text-muted mb-2">Примеры активов</p>
+            <div className="flex flex-wrap gap-1.5">
+              {details.assets.map(a => (
+                <span key={a} className="text-[11px] text-warm bg-[var(--surface)] border border-[var(--border)] px-2 py-0.5 rounded">
+                  {a}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 mb-5">
+          {/* Pros */}
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[1px] text-green-400 mb-2">Плюсы</p>
+            <ul className="space-y-1.5">
+              {details.pros.map(p => (
+                <li key={p} className="text-[13px] text-warm flex items-start gap-2">
+                  <span className="text-green-400 mt-0.5 flex-shrink-0">✓</span>{p}
+                </li>
+              ))}
+            </ul>
+          </div>
+          {/* Cons */}
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[1px] text-red-400 mb-2">Минусы</p>
+            <ul className="space-y-1.5">
+              {details.cons.map(c => (
+                <li key={c} className="text-[13px] text-warm flex items-start gap-2">
+                  <span className="text-red-400 mt-0.5 flex-shrink-0">✗</span>{c}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        {/* When NOT */}
+        <div className="bg-red-950/30 border border-red-800/40 rounded-xl p-4">
+          <p className="text-[11px] font-bold uppercase tracking-[1px] text-red-400 mb-1">Когда не использовать</p>
+          <p className="text-[13px] text-warm/80">{details.notFor}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── ModelsSection ─────────────────────────────────────────────────────────────
 function ModelsSection() {
   const headRef = useReveal()
   const gridRef = useReveal()
+  const [activeModel, setActiveModel] = useState(null)
+
   return (
-    <div className="bg-[var(--surface)] border-y border-[var(--border)] py-20 px-12">
+    <div id="models" className="bg-[var(--surface)] border-y border-[var(--border)] py-20 px-12">
       <div className="max-w-[1200px] mx-auto">
         <div ref={headRef} className="reveal text-center mb-12">
           <div className="text-[11px] font-bold tracking-[1.5px] uppercase text-amber-400 mb-4">
@@ -547,16 +681,17 @@ function ModelsSection() {
             От классики до<br />гибридных архитектур
           </h2>
           <p className="text-[16px] text-muted">
-            Каждая модель обучена на ценовых рядах. Ансамбль усредняет лучшие предсказания.
+            Кликни на карточку — узнай когда и где применять каждую модель.
           </p>
         </div>
         <div ref={gridRef} className="reveal grid grid-cols-4 gap-4">
           {MODELS.map(m => (
-            <div key={m.name}
-              className={`rounded-xl p-5 border cursor-default
-                          transition-all duration-300 hover:-translate-y-1
+            <button key={m.name}
+              onClick={() => setActiveModel(m)}
+              className={`rounded-xl p-5 border text-left
+                          transition-all duration-300 hover:-translate-y-1 hover:shadow-lg
                 ${m.best
-                  ? 'bg-amber-400/5 border-amber-400/30'
+                  ? 'bg-amber-400/5 border-amber-400/30 hover:border-amber-400/60'
                   : 'bg-black/30 border-[var(--border)] hover:border-amber-400/30'}`}>
               <div className={`w-9 h-9 rounded-lg flex items-center justify-center
                                text-base mb-3.5
@@ -573,10 +708,17 @@ function ModelsSection() {
                 ${m.best ? 'text-amber-300' : 'text-amber-400'}`}>
                 <span>◆</span> MAPE {m.mape}{m.best ? ' — лучший' : ''}
               </div>
-            </div>
+              <div className="text-[10px] text-muted/60 mt-2">Подробнее →</div>
+            </button>
           ))}
         </div>
       </div>
+
+      <ModelModal
+        model={activeModel}
+        details={activeModel ? MODEL_DETAILS[activeModel.name] : null}
+        onClose={() => setActiveModel(null)}
+      />
     </div>
   )
 }
@@ -730,10 +872,9 @@ function Footer() {
   )
 }
 
-export default function LandingPage({ onOpenPricing, onNavigate }) {
+export default function LandingPage({ onOpenPricing }) {
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
-      <Nav onOpenPricing={onOpenPricing} onNavigate={onNavigate} />
       <div style={{ marginTop: '60px' }}>
         <TickerTape />
       </div>
