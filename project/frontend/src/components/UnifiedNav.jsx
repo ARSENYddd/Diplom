@@ -4,6 +4,7 @@ const LINKS = [
   { label: 'Прогноз', href: '/forecast' },
   { label: 'Сигналы', href: '/signals' },
   { label: 'Модели',  href: '/models' },
+  { label: 'Wiki',    href: '/wiki' },
   { label: 'Цены',    anchor: 'pricing' },
 ]
 

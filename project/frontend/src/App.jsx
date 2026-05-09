@@ -4,6 +4,7 @@ import ChartPanel from './components/ChartPanel'
 import SignalsPage from './components/SignalsPage'
 import LandingPage from './components/LandingPage'
 import ModelsPage from './components/ModelsPage'
+import WikiPage from './components/WikiPage'
 import PricingModal from './components/PricingModal'
 import { useRouter } from './hooks/useRouter'
 
@@ -25,6 +26,22 @@ export default function App() {
       <>
         <UnifiedNav onOpenPricing={openPricing} />
         <LandingPage onOpenPricing={openPricing} onNavigate={navigate} />
+        <PricingModal
+          open={pricingOpen}
+          onClose={() => setPricingOpen(false)}
+          onStart={() => { setPricingOpen(false); navigate('/forecast') }}
+        />
+      </>
+    )
+  }
+
+  // Wiki page
+  if (path === '/wiki') {
+    return (
+      <>
+        <UnifiedNav onOpenPricing={openPricing} />
+        <div className="h-[60px]" />
+        <WikiPage />
         <PricingModal
           open={pricingOpen}
           onClose={() => setPricingOpen(false)}
