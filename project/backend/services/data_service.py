@@ -38,7 +38,10 @@ def _load_moex(ticker_me: str, start: str, end: str) -> pd.DataFrame:
     all_rows: list = []
     offset = 0
 
-    with httpx.Client(timeout=30) as client:
+    # Увеличенный таймаут: connect=15s, read=60s — ISS бывает медленным
+    _timeout = httpx.Timeout(60.0, connect=15.0)
+
+    with httpx.Client(timeout=_timeout, verify=True) as client:
         while True:
             params = {
                 "from":     start,
@@ -127,7 +130,25 @@ def load_data(ticker: str, start: str, end: str) -> pd.DataFrame:
 
     # --- Choose data source ---
     if _is_moex_ticker(ticker):
-        df = _load_moex(ticker, start, end)
+        try:
+            df = _load_moex(ticker, start, end)
+        except Exception as moex_err:
+            # Fallback: yfinance тоже поддерживает .ME тикеры (через Yahoo Finance)
+            import logging
+            logging.warning(
+                f"MOEX ISS недоступен для {ticker} ({moex_err}), "
+                "переключаюсь на yfinance..."
+            )
+            df = yf.download(ticker, start=start, end=end, progress=False, auto_adjust=True)
+            if df.empty:
+                raise ValueError(
+                    f"Нет данных для {ticker}: MOEX ISS timeout, yfinance тоже вернул пустой ответ."
+                ) from moex_err
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.droplevel(1)
+            df = df[["Close"]].copy()
+            df.index = pd.to_datetime(df.index)
+            df = df.dropna()
     else:
         df = yf.download(ticker, start=start, end=end, progress=False, auto_adjust=True)
         if df.empty:
