@@ -1,4 +1,5 @@
 // project/frontend/src/components/LandingPage.jsx
+import { useEffect, useRef } from 'react'
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 const TICKERS = [
@@ -267,6 +268,230 @@ function HeroDashboard() {
   )
 }
 
+// ── Scroll-reveal hook ────────────────────────────────────────────────────────
+function useReveal() {
+  const ref = useRef(null)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { el.classList.add('visible'); obs.unobserve(el) } },
+      { threshold: 0.1 }
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [])
+  return ref
+}
+
+// ── StatsBar ──────────────────────────────────────────────────────────────────
+function StatsBar() {
+  const ref = useReveal()
+  return (
+    <div ref={ref} className="reveal flex items-center justify-center
+                              bg-[var(--surface)] border-y border-[var(--border)] py-10">
+      {[
+        { val: '8',     lbl: 'ML-моделей' },
+        { val: '0.78%', lbl: 'MAPE — лучший результат' },
+        { val: '+34%',  lbl: 'Доходность бэктеста' },
+        { val: '40+',   lbl: 'Торговых инструментов' },
+      ].map((s, i, arr) => (
+        <div key={s.lbl}
+          className={`flex-1 text-center px-10
+            ${i < arr.length - 1 ? 'border-r border-[var(--border)]' : ''}`}>
+          <div className="text-[42px] font-extrabold text-amber-400
+                          font-[number:tabular-nums] tracking-tight leading-none mb-1.5">
+            {s.val}
+          </div>
+          <div className="text-[13px] text-muted">{s.lbl}</div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ── FeatureRow ────────────────────────────────────────────────────────────────
+function FeatureRow({ eyebrow, title, sub, bullets, panel, reverse = false }) {
+  const ref = useReveal()
+  return (
+    <div ref={ref}
+      className={`reveal grid gap-20 items-center px-12 py-20 max-w-[1200px] mx-auto
+                  border-t border-[var(--border)]
+                  ${reverse ? 'grid-cols-[1fr_1fr]' : 'grid-cols-[1fr_1fr]'}`}
+      style={reverse ? { direction: 'rtl' } : {}}>
+      <div style={reverse ? { direction: 'ltr' } : {}}>
+        <div className="text-[11px] font-bold tracking-[1.5px] uppercase text-amber-400 mb-4">
+          {eyebrow}
+        </div>
+        <h2 className="text-[clamp(28px,3.5vw,44px)] font-extrabold text-white
+                       leading-[1.15] tracking-[-1px] mb-4"
+          dangerouslySetInnerHTML={{ __html: title }} />
+        <p className="text-[16px] text-muted leading-[1.7] max-w-[480px] mb-10">{sub}</p>
+        <ul className="flex flex-col gap-3.5">
+          {bullets.map(b => (
+            <li key={b} className="flex items-start gap-3 text-[14px] text-muted leading-[1.5]">
+              <span className="text-amber-400 text-[8px] mt-[5px] flex-shrink-0">◆</span>
+              {b}
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div style={reverse ? { direction: 'ltr' } : {}}>
+        <div className="relative bg-[var(--surface)] border border-[var(--border)] rounded-[14px]
+                        overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.4)]">
+          <div className="absolute top-0 left-0 right-0 h-px
+                          bg-gradient-to-r from-transparent via-amber-400 to-transparent" />
+          {panel}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Panel: model accuracy bars
+function ModelBarsPanel() {
+  const BARS = [
+    { name: 'ARIMA',       mape: '1.82%', pct: 93,  warm: false },
+    { name: 'GARCH',       mape: '2.14%', pct: 100, warm: false },
+    { name: 'LSTM',        mape: '1.34%', pct: 65,  warm: true  },
+    { name: 'ARIMA+LSTM',  mape: '0.96%', pct: 47,  warm: true  },
+    { name: 'Triple',      mape: '0.87%', pct: 42,  warm: true  },
+    { name: '★ Ensemble',  mape: '0.78%', pct: 38,  warm: true, best: true },
+  ]
+  return (
+    <>
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--border)]">
+        <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+        <span className="text-[11px] text-muted">Точность моделей — S&amp;P 500</span>
+      </div>
+      <div className="p-5">
+        <div className="text-[10px] text-muted uppercase tracking-[0.8px] mb-3.5">
+          MAPE ↓ (меньше = точнее)
+        </div>
+        <div className="flex flex-col gap-2.5">
+          {BARS.map(b => (
+            <div key={b.name} className="flex items-center gap-3">
+              <span className={`text-[11px] w-[90px] flex-shrink-0
+                ${b.best ? 'text-amber-400' : 'text-muted'}`}>
+                {b.name}
+              </span>
+              <div className="flex-1 h-2 rounded bg-white/5 overflow-hidden">
+                <div className="h-full rounded"
+                  style={{
+                    width: `${b.pct}%`,
+                    background: b.best
+                      ? 'linear-gradient(90deg,#d97706,#fcd34d)'
+                      : b.warm
+                        ? 'linear-gradient(90deg,#5a4010,#f59e0b)'
+                        : 'linear-gradient(90deg,#3a3020,#7a6a4a)',
+                  }} />
+              </div>
+              <span className={`text-[11px] w-10 text-right font-[number:tabular-nums]
+                ${b.best ? 'text-amber-300' : 'text-amber-400'}`}>
+                {b.mape}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  )
+}
+
+// Panel: live signals
+function SignalsPanel() {
+  const SIGNALS = [
+    { action: 'BUY',  ticker: '^GSPC',        model: 'Ensemble',      price: '5 248.49', conf: '87%', future: false },
+    { action: 'SELL', ticker: 'GAZP.ME',       model: 'ARIMA+LSTM',    price: '163.45',   conf: '72%', future: false },
+    { action: 'BUY',  ticker: 'GC=F (Золото)', model: 'Triple Hybrid', price: '2 341.80', conf: '91%', future: false },
+    { action: 'HOLD', ticker: 'NVDA',          model: 'GARCH+LSTM',    price: '867.40',   conf: '58%', future: false },
+    { action: 'BUY',  ticker: 'BZ=F (Brent)',  model: '★ Прогноз +7d', price: '83.14',    conf: '79%', future: true  },
+  ]
+  const colors = {
+    BUY:  { bg: 'bg-green-400/15',  text: 'text-green-400' },
+    SELL: { bg: 'bg-red-400/15',    text: 'text-red-400'   },
+    HOLD: { bg: 'bg-amber-400/15',  text: 'text-amber-400' },
+  }
+  return (
+    <>
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--border)]">
+        <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+        <span className="text-[11px] text-muted">Активные сигналы · Обновлено только что</span>
+      </div>
+      <div className="p-4 flex flex-col gap-2">
+        {SIGNALS.map((s, i) => (
+          <div key={i}
+            className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg border
+              ${s.future
+                ? 'border-amber-400/20 bg-amber-400/5'
+                : 'border-[var(--border)] bg-black/20'}`}>
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded
+                              ${colors[s.action].bg} ${colors[s.action].text}`}>
+              {s.action}
+            </span>
+            <div className="min-w-0">
+              <div className="text-[12px] font-semibold text-white">{s.ticker}</div>
+              <div className={`text-[10px] ${s.future ? 'text-amber-400' : 'text-muted'}`}>
+                {s.model}
+              </div>
+            </div>
+            <div className="ml-auto text-right">
+              <div className={`text-[12px] font-semibold font-[number:tabular-nums]
+                ${s.future ? 'text-amber-300' : 'text-amber-400'}`}>
+                {s.price}
+              </div>
+              <div className="text-[10px] text-muted">уверенность {s.conf}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </>
+  )
+}
+
+// Panel: backtest equity curve
+function BacktestPanel() {
+  return (
+    <>
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--border)]">
+        <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+        <span className="text-[11px] text-muted">Backtest · ^GSPC · Ensemble · 2018–2024</span>
+      </div>
+      <div className="p-5">
+        <div className="grid grid-cols-3 gap-3 mb-4">
+          {[
+            { label: 'Доходность', val: '+34.2%', color: 'text-green-400', sub: 'B&H: +21.4%' },
+            { label: 'Sharpe',     val: '1.87',   color: 'text-amber-400', sub: 'отлично (>1)' },
+            { label: 'Win Rate',   val: '61%',    color: 'text-amber-400', sub: '42 сделки'   },
+          ].map(m => (
+            <div key={m.label} className="bg-black/20 border border-[var(--border)] rounded-lg px-3 py-2">
+              <div className="text-[9px] text-muted uppercase tracking-[0.8px] mb-1">{m.label}</div>
+              <div className={`text-[22px] font-bold ${m.color} font-[number:tabular-nums]`}>{m.val}</div>
+              <div className="text-[9px] text-muted mt-0.5">{m.sub}</div>
+            </div>
+          ))}
+        </div>
+        <svg viewBox="0 0 380 80" className="w-full h-20">
+          <defs>
+            <linearGradient id="bt-eq" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#4ade80" stopOpacity="0.3" />
+              <stop offset="100%" stopColor="#4ade80" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <path d="M0,70 C20,68 40,65 60,58 C80,51 90,55 110,45 C130,35 150,40 170,30
+                   C190,22 210,28 230,20 C250,13 270,18 290,12 C310,6 330,10 350,7
+                   C365,5 372,4 380,2"
+            fill="url(#bt-eq)" stroke="#4ade80" strokeWidth="1.5" />
+          <path d="M0,70 C100,60 200,45 380,30"
+            fill="none" stroke="#7a6a4a" strokeWidth="1" strokeDasharray="4,3" />
+          <text x="300" y="25" fontSize="8" fill="#4ade80">Стратегия</text>
+          <text x="300" y="38" fontSize="8" fill="#7a6a4a">Buy &amp; Hold</text>
+        </svg>
+      </div>
+    </>
+  )
+}
+
 export default function LandingPage({ onLaunch }) {
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg)' }}>
@@ -275,6 +500,47 @@ export default function LandingPage({ onLaunch }) {
         <TickerTape />
       </div>
       <Hero onLaunch={onLaunch} />
+      <StatsBar />
+      <FeatureRow
+        eyebrow="Прогнозирование"
+        title="Предсказывай цены с<br/>точностью нейросетей"
+        sub="От классического ARIMA до гибридных архитектур — выбирай модель под задачу и получай прогноз за секунды."
+        bullets={[
+          'Прогноз на любой горизонт — от дней до месяцев',
+          'Мультипанельный режим: сравнивай активы параллельно',
+          'Метрики точности MAE, RMSE, MAPE для каждой модели',
+          '5 сценариев: медвежий → базовый → бычий',
+          'Интерактивный зум и инструменты рисования',
+        ]}
+        panel={<ModelBarsPanel />}
+      />
+      <FeatureRow
+        eyebrow="Торговые сигналы"
+        title="Сигналы BUY / SELL<br/>на основе прогноза"
+        sub="Алгоритм генерирует чёткие сигналы для входа и выхода из позиции — на истории и с заглядыванием в будущее."
+        bullets={[
+          '3 стратегии: momentum, mean-reversion, trend-following',
+          'Уверенность сигнала в процентах для каждой сделки',
+          'Прогноз сигналов на N дней вперёд',
+          'Фильтрация по минимальному порогу уверенности',
+          'Экспорт сигналов в таблицу',
+        ]}
+        panel={<SignalsPanel />}
+        reverse
+      />
+      <FeatureRow
+        eyebrow="Бэктестирование"
+        title="Проверь стратегию<br/>на истории рынка"
+        sub="Запусти бэктест любой комбинации актив × модель × стратегия — equity curve, Sharpe, drawdown, win rate."
+        bullets={[
+          'Кривая капитала vs стратегия Buy & Hold',
+          'Sharpe ratio, Max Drawdown, Win Rate, Profit Factor',
+          'Комиссия, проскальзывание, реинвестирование',
+          'Таблица всех сделок с датами и P&L',
+          'Начальный капитал от 1 000 до 1 000 000',
+        ]}
+        panel={<BacktestPanel />}
+      />
     </div>
   )
 }
