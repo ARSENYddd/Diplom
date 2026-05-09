@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Brainstorm — Brand Direction</title>
+<script src="/helper.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0a0a0a;
+    color: #e8e0d0;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    padding: 40px 32px;
+  }
+  h2 { font-size: 22px; font-weight: 600; color: #fff; margin-bottom: 6px; }
+  .subtitle { font-size: 14px; color: #888; margin-bottom: 32px; }
+
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+
+  .card {
+    border-radius: 16px;
+    overflow: hidden;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: border-color 0.2s, transform 0.2s;
+    background: #111;
+  }
+  .card:hover { transform: translateY(-2px); }
+  .card.selected { border-color: #f59e0b !important; }
+
+  .card-preview {
+    height: 220px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* ── Option A: Pure Monochrome + Amber accent ── */
+  .preview-a {
+    background: #0d0d0d;
+    display: flex; flex-direction: column;
+  }
+  .preview-a .nav {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 18px;
+    border-bottom: 1px solid #222;
+    background: #0d0d0d;
+  }
+  .preview-a .logo-mark {
+    width: 28px; height: 28px; border-radius: 6px;
+    background: #f59e0b;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 800; color: #000;
+  }
+  .preview-a .logo-text { font-size: 14px; font-weight: 600; color: #fff; letter-spacing: -0.3px; }
+  .preview-a .nav-links { margin-left: auto; display: flex; gap: 16px; }
+  .preview-a .nav-link { font-size: 11px; color: #666; }
+  .preview-a .nav-cta {
+    font-size: 11px; color: #000; background: #f59e0b;
+    padding: 4px 10px; border-radius: 5px; font-weight: 600;
+  }
+  .preview-a .hero {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 16px; text-align: center;
+  }
+  .preview-a .hero-badge {
+    font-size: 9px; font-weight: 600; letter-spacing: 1.5px;
+    color: #f59e0b; background: #f59e0b15; border: 1px solid #f59e0b40;
+    padding: 3px 8px; border-radius: 20px; margin-bottom: 10px; text-transform: uppercase;
+  }
+  .preview-a .hero-title { font-size: 20px; font-weight: 700; color: #fff; line-height: 1.2; margin-bottom: 8px; }
+  .preview-a .hero-title span { color: #f59e0b; }
+  .preview-a .hero-sub { font-size: 10px; color: #666; margin-bottom: 14px; }
+  .preview-a .hero-btns { display: flex; gap: 8px; }
+  .preview-a .btn-primary {
+    font-size: 10px; font-weight: 600; color: #000;
+    background: #f59e0b; padding: 6px 14px; border-radius: 6px;
+  }
+  .preview-a .btn-ghost {
+    font-size: 10px; color: #888;
+    border: 1px solid #333; padding: 6px 14px; border-radius: 6px;
+  }
+
+  /* ── Option B: Dark Charcoal + Warm Gold ── */
+  .preview-b {
+    background: linear-gradient(135deg, #141414 0%, #1a1610 100%);
+    display: flex; flex-direction: column;
+  }
+  .preview-b .nav {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 18px;
+    border-bottom: 1px solid #2a2418;
+    background: transparent;
+  }
+  .preview-b .logo-mark {
+    width: 28px; height: 28px; border-radius: 6px;
+    background: linear-gradient(135deg, #d97706, #f59e0b);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 800; color: #000;
+    box-shadow: 0 0 12px #f59e0b44;
+  }
+  .preview-b .logo-text { font-size: 14px; font-weight: 600; color: #e8d5a3; letter-spacing: -0.3px; }
+  .preview-b .nav-links { margin-left: auto; display: flex; gap: 16px; }
+  .preview-b .nav-link { font-size: 11px; color: #7a6a4a; }
+  .preview-b .nav-cta {
+    font-size: 11px; color: #000; background: linear-gradient(135deg, #d97706, #f59e0b);
+    padding: 4px 10px; border-radius: 5px; font-weight: 600;
+  }
+  .preview-b .hero {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 16px; text-align: center;
+  }
+  .preview-b .stat-row {
+    display: flex; gap: 16px; margin-bottom: 12px;
+  }
+  .preview-b .stat { text-align: center; }
+  .preview-b .stat-val { font-size: 22px; font-weight: 700; color: #f59e0b; font-variant-numeric: tabular-nums; }
+  .preview-b .stat-lbl { font-size: 9px; color: #7a6a4a; text-transform: uppercase; letter-spacing: 0.8px; }
+  .preview-b .hero-title { font-size: 15px; font-weight: 600; color: #e8d5a3; margin-bottom: 10px; }
+  .preview-b .btn-primary {
+    font-size: 10px; font-weight: 700; color: #000;
+    background: linear-gradient(135deg, #d97706, #f59e0b);
+    padding: 7px 18px; border-radius: 6px;
+    box-shadow: 0 4px 14px #f59e0b33;
+  }
+
+  /* ── Option C: Minimal / Editorial ── */
+  .preview-c {
+    background: #fafaf9;
+    display: flex; flex-direction: column;
+  }
+  .preview-c .nav {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 18px;
+    border-bottom: 1px solid #e5e0d8;
+    background: #fff;
+  }
+  .preview-c .logo-text { font-size: 14px; font-weight: 700; color: #1a1a1a; letter-spacing: -0.5px; }
+  .preview-c .logo-dot { color: #f59e0b; }
+  .preview-c .nav-links { margin-left: auto; display: flex; gap: 16px; }
+  .preview-c .nav-link { font-size: 11px; color: #999; }
+  .preview-c .nav-cta {
+    font-size: 11px; color: #fff; background: #1a1a1a;
+    padding: 4px 10px; border-radius: 5px; font-weight: 600;
+  }
+  .preview-c .hero {
+    flex: 1; display: flex; flex-direction: column;
+    padding: 20px 18px 16px;
+  }
+  .preview-c .chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 9px; font-weight: 600; color: #92400e;
+    background: #fef3c7; border: 1px solid #fde68a;
+    padding: 3px 8px; border-radius: 20px; margin-bottom: 10px;
+    text-transform: uppercase; letter-spacing: 0.8px; align-self: flex-start;
+  }
+  .preview-c .hero-title { font-size: 19px; font-weight: 800; color: #111; line-height: 1.2; margin-bottom: 6px; }
+  .preview-c .hero-title em { color: #d97706; font-style: normal; }
+  .preview-c .hero-sub { font-size: 10px; color: #888; line-height: 1.5; margin-bottom: 14px; }
+  .preview-c .hero-btns { display: flex; gap: 8px; }
+  .preview-c .btn-primary {
+    font-size: 10px; font-weight: 700; color: #fff;
+    background: #1a1a1a; padding: 7px 14px; border-radius: 6px;
+  }
+  .preview-c .btn-amber {
+    font-size: 10px; font-weight: 600; color: #92400e;
+    background: #fef3c7; border: 1px solid #fde68a;
+    padding: 7px 14px; border-radius: 6px;
+  }
+
+  .card-body { padding: 14px 16px 16px; }
+  .card-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 1px;
+    text-transform: uppercase; color: #f59e0b; margin-bottom: 4px;
+  }
+  .card-title { font-size: 14px; font-weight: 600; color: #e8e0d0; margin-bottom: 4px; }
+  .card-desc { font-size: 12px; color: #666; line-height: 1.5; }
+
+  .letter { display: none; }
+
+  .selection-bar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: #111; border-top: 1px solid #222;
+    padding: 12px 32px;
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 13px; color: #888;
+  }
+  .selection-bar .confirm {
+    background: #f59e0b; color: #000; font-weight: 700;
+    padding: 8px 20px; border-radius: 8px; border: none;
+    cursor: pointer; font-size: 13px;
+    display: none;
+  }
+  .selection-bar.has-selection .confirm { display: block; }
+  .selection-bar.has-selection { color: #e8e0d0; }
+</style>
+</head>
+<body>
+
+<h2>Общее направление дизайна</h2>
+<p class="subtitle">Три интерпретации палитры Monochrome & Amber — выбери стиль, к которому будем двигаться</p>
+
+<div class="cards">
+
+  <!-- A -->
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-preview preview-a">
+      <div class="nav">
+        <div class="logo-mark">Q</div>
+        <span class="logo-text">QuantEdge</span>
+        <div class="nav-links">
+          <span class="nav-link">Прогноз</span>
+          <span class="nav-link">Сигналы</span>
+          <span class="nav-link">Модели</span>
+          <span class="nav-cta">Запустить</span>
+        </div>
+      </div>
+      <div class="hero">
+        <div class="hero-badge">⚡ AI-прогнозирование</div>
+        <div class="hero-title">Финансовые прогнозы<br><span>с точностью ML</span></div>
+        <div class="hero-sub">ARIMA · GARCH · LSTM · Ensemble</div>
+        <div class="hero-btns">
+          <div class="btn-primary">Открыть платформу →</div>
+          <div class="btn-ghost">Смотреть демо</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="card-label">Вариант A</div>
+      <div class="card-title">Чистый тёмный + Amber акцент</div>
+      <div class="card-desc">Максимально строгий. Чёрный фон, белый текст, янтарь только для CTA и ключевых данных. Похоже на Bloomberg Terminal.</div>
+    </div>
+  </div>
+
+  <!-- B -->
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-preview preview-b">
+      <div class="nav">
+        <div class="logo-mark">A</div>
+        <span class="logo-text">AlphaSignal</span>
+        <div class="nav-links">
+          <span class="nav-link">Прогноз</span>
+          <span class="nav-link">Сигналы</span>
+          <span class="nav-cta">Попробовать</span>
+        </div>
+      </div>
+      <div class="hero">
+        <div class="stat-row">
+          <div class="stat">
+            <div class="stat-val">+34.2%</div>
+            <div class="stat-lbl">Доходность</div>
+          </div>
+          <div class="stat">
+            <div class="stat-val">1.87</div>
+            <div class="stat-lbl">Sharpe</div>
+          </div>
+          <div class="stat">
+            <div class="stat-val">0.78%</div>
+            <div class="stat-lbl">MAPE</div>
+          </div>
+        </div>
+        <div class="hero-title">Institutional-grade<br>market forecasting</div>
+        <div class="btn-primary">Start Free Trial</div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="card-label">Вариант B</div>
+      <div class="card-title">Warm Dark + Gold Glow</div>
+      <div class="card-desc">Тёплый тёмный фон с золотистым свечением. Цифры в центре внимания. Ощущение premium wealth management, ближе к ProjectionLab.</div>
+    </div>
+  </div>
+
+  <!-- C -->
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-preview preview-c">
+      <div class="nav">
+        <div class="logo-text">Forecast<span class="logo-dot">.</span>ai</div>
+        <div class="nav-links">
+          <span class="nav-link">Прогноз</span>
+          <span class="nav-link">Сигналы</span>
+          <span class="nav-cta">Открыть</span>
+        </div>
+      </div>
+      <div class="hero">
+        <div class="chip">✦ ML-прогнозирование</div>
+        <div class="hero-title">Умный анализ<br>финансовых <em>рынков</em></div>
+        <div class="hero-sub">8 моделей — ARIMA, GARCH, LSTM и гибриды. Торговые сигналы. Бэктестирование.</div>
+        <div class="hero-btns">
+          <div class="btn-primary">Открыть платформу</div>
+          <div class="btn-amber">Смотреть демо</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="card-label">Вариант C</div>
+      <div class="card-title">Light Editorial + Amber</div>
+      <div class="card-desc">Светлый лаконичный стиль в духе Stripe/Linear. Янтарь как акцент на белом фоне. Выделяется на фоне конкурентов-тёмных.</div>
+    </div>
+  </div>
+
+</div>
+
+<div style="height: 64px;"></div>
+
+<div class="selection-bar" id="selBar">
+  <span id="selText">Кликни на вариант чтобы выбрать</span>
+  <button class="confirm" onclick="confirmSelection()">Подтвердить выбор →</button>
+</div>
+
+<script>
+  let selected = null;
+  function toggleSelect(el) {
+    document.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    selected = el.dataset.choice;
+    const titles = {a: 'A — Чистый тёмный + Amber акцент', b: 'B — Warm Dark + Gold Glow', c: 'C — Light Editorial + Amber'};
+    document.getElementById('selText').textContent = 'Выбран: ' + titles[selected];
+    document.getElementById('selBar').classList.add('has-selection');
+    if (window.recordChoice) recordChoice(selected, el.querySelector('.card-title')?.textContent || selected);
+  }
+  function confirmSelection() {
+    if (selected && window.recordChoice) recordChoice('confirmed-' + selected, 'Confirmed: ' + selected);
+    document.getElementById('selText').textContent = '✓ Выбор сохранён — ответь в терминале';
+  }
+</script>
+
+</body>
+</html>

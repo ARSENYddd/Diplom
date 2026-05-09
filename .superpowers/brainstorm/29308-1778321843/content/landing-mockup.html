@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AlphaSignal — Landing Mockup</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg:       #0d0b08;
+  --bg2:      #111008;
+  --surface:  #1a1710;
+  --border:   #2a2418;
+  --amber:    #f59e0b;
+  --amber2:   #d97706;
+  --amber3:   #fcd34d;
+  --text:     #e8d5a3;
+  --muted:    #7a6a4a;
+  --dim:      #3a3020;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  overflow-x: hidden;
+}
+
+/* ── ANIMATIONS ─────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(32px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-8px); }
+}
+@keyframes pulse-amber {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245,158,11,0); }
+  50%       { box-shadow: 0 0 24px 4px rgba(245,158,11,0.25); }
+}
+@keyframes gradient-shift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@keyframes draw-line {
+  from { stroke-dashoffset: 400; }
+  to   { stroke-dashoffset: 0; }
+}
+@keyframes counter {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+@keyframes scanline {
+  0%   { top: -2px; }
+  100% { top: 100%; }
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes bar-grow {
+  from { height: 0; }
+  to   { height: var(--h); }
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ── NAV ───────────────────────────────────────────── */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  display: flex; align-items: center; gap: 24px;
+  padding: 0 48px;
+  height: 60px;
+  background: rgba(13,11,8,0.85);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+.logo {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 17px; font-weight: 700; color: #fff;
+  letter-spacing: -0.4px; text-decoration: none;
+}
+.logo-mark {
+  width: 30px; height: 30px; border-radius: 7px;
+  background: linear-gradient(135deg, var(--amber2), var(--amber));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 800; color: #000;
+  box-shadow: 0 0 14px rgba(245,158,11,0.4);
+  animation: pulse-amber 3s ease-in-out infinite;
+}
+.nav-links { display: flex; align-items: center; gap: 6px; margin-left: 24px; }
+.nav-link {
+  font-size: 13px; color: var(--muted); padding: 6px 12px;
+  border-radius: 6px; cursor: pointer; transition: color 0.2s;
+}
+.nav-link:hover { color: var(--text); }
+.nav-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.nav-signin {
+  font-size: 13px; color: var(--muted); padding: 6px 12px;
+  border-radius: 6px; cursor: pointer;
+}
+.nav-cta {
+  font-size: 13px; font-weight: 600; color: #000;
+  background: var(--amber);
+  padding: 7px 16px; border-radius: 8px; cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+.nav-cta:hover { background: var(--amber3); transform: scale(1.02); }
+
+/* ── HERO ──────────────────────────────────────────── */
+.hero {
+  min-height: 100vh;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 120px 48px 80px;
+  position: relative; overflow: hidden;
+  text-align: center;
+}
+
+/* Radial glow behind */
+.hero::before {
+  content: '';
+  position: absolute; top: 20%; left: 50%;
+  transform: translateX(-50%);
+  width: 600px; height: 400px;
+  background: radial-gradient(ellipse, rgba(245,158,11,0.12) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* Grid pattern */
+.hero-grid {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(245,158,11,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(245,158,11,0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+}
+
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 600; letter-spacing: 1.2px;
+  color: var(--amber); text-transform: uppercase;
+  background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.25);
+  padding: 5px 14px; border-radius: 20px; margin-bottom: 28px;
+  animation: fadeIn 0.6s ease both;
+  position: relative; overflow: hidden;
+}
+.hero-badge::after {
+  content: '';
+  position: absolute; top: 0; left: -50%; width: 50%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+  animation: shimmer 2.5s ease-in-out infinite;
+}
+
+.hero-title {
+  font-size: clamp(40px, 6vw, 72px);
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: -2px;
+  color: #fff;
+  margin-bottom: 24px;
+  animation: fadeUp 0.7s ease 0.1s both;
+}
+.hero-title .amber {
+  background: linear-gradient(135deg, var(--amber2), var(--amber), var(--amber3));
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradient-shift 3s ease infinite;
+}
+
+.hero-sub {
+  font-size: 18px; color: var(--muted); max-width: 560px;
+  line-height: 1.6; margin-bottom: 40px;
+  animation: fadeUp 0.7s ease 0.2s both;
+}
+
+.hero-btns {
+  display: flex; align-items: center; gap: 14px;
+  margin-bottom: 72px;
+  animation: fadeUp 0.7s ease 0.3s both;
+}
+.btn-primary {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 15px; font-weight: 700; color: #000;
+  background: linear-gradient(135deg, var(--amber2), var(--amber));
+  padding: 14px 28px; border-radius: 10px; cursor: pointer;
+  box-shadow: 0 4px 24px rgba(245,158,11,0.3);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(245,158,11,0.4); }
+.btn-ghost {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 15px; color: var(--muted);
+  border: 1px solid var(--border);
+  padding: 13px 24px; border-radius: 10px; cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+.btn-ghost:hover { border-color: var(--dim); color: var(--text); }
+
+/* Hero Dashboard Mockup */
+.hero-dashboard {
+  width: 100%; max-width: 900px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(245,158,11,0.1);
+  animation: fadeUp 0.9s ease 0.4s both, float 6s ease-in-out 1.5s infinite;
+  position: relative;
+}
+.hero-dashboard::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--amber), transparent);
+}
+.dash-bar {
+  display: flex; align-items: center; gap: 6px;
+  padding: 12px 16px;
+  background: rgba(0,0,0,0.3);
+  border-bottom: 1px solid var(--border);
+}
+.dash-dot { width: 8px; height: 8px; border-radius: 50%; }
+.dash-title {
+  margin-left: 8px; font-size: 12px; color: var(--muted);
+  font-family: 'SF Mono', monospace;
+}
+.dash-badge {
+  margin-left: auto; font-size: 10px; font-weight: 600; color: var(--amber);
+  background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.2);
+  padding: 2px 8px; border-radius: 10px;
+}
+
+.dash-body {
+  display: grid; grid-template-columns: 220px 1fr;
+}
+
+.dash-sidebar {
+  border-right: 1px solid var(--border);
+  padding: 16px 12px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.sidebar-label {
+  font-size: 9px; font-weight: 700; letter-spacing: 1.2px;
+  color: var(--dim); text-transform: uppercase; margin-bottom: 4px; padding: 0 8px;
+}
+.sidebar-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px; border-radius: 7px; cursor: pointer;
+}
+.sidebar-item.active {
+  background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.15);
+}
+.sidebar-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+.sidebar-ticker { font-size: 11px; font-weight: 600; color: #fff; }
+.sidebar-model { font-size: 10px; color: var(--muted); }
+.sidebar-val { margin-left: auto; font-size: 11px; font-weight: 600; color: var(--amber); }
+
+.dash-main { padding: 16px; }
+
+.dash-metrics {
+  display: flex; gap: 16px; margin-bottom: 14px;
+}
+.metric {
+  flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 12px;
+}
+.metric-label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px; }
+.metric-val { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.metric-val.green { color: #4ade80; }
+.metric-val.amber { color: var(--amber); }
+.metric-val.red   { color: #f87171; }
+.metric-sub { font-size: 9px; color: var(--muted); margin-top: 2px; }
+
+/* SVG Chart */
+.dash-chart { width: 100%; height: 130px; }
+
+/* Scanline effect */
+.scanline {
+  position: absolute; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(245,158,11,0.3), transparent);
+  animation: scanline 4s linear infinite;
+  pointer-events: none;
+}
+
+/* ── STATS BAR ─────────────────────────────────────── */
+.stats-bar {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 40px 48px;
+  display: flex; align-items: center; justify-content: center; gap: 0;
+}
+.stat-item {
+  flex: 1; text-align: center;
+  padding: 0 40px;
+  border-right: 1px solid var(--border);
+}
+.stat-item:last-child { border-right: none; }
+.stat-val {
+  font-size: 42px; font-weight: 800; color: var(--amber);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -1px;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.stat-lbl { font-size: 13px; color: var(--muted); }
+
+/* ── SECTION COMMON ────────────────────────────────── */
+.section { padding: 100px 48px; max-width: 1200px; margin: 0 auto; }
+.section-eyebrow {
+  font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--amber); margin-bottom: 16px;
+}
+.section-title {
+  font-size: clamp(28px, 3.5vw, 44px); font-weight: 800;
+  color: #fff; line-height: 1.15; letter-spacing: -1px;
+  margin-bottom: 18px;
+}
+.section-sub {
+  font-size: 16px; color: var(--muted); line-height: 1.7;
+  max-width: 480px; margin-bottom: 40px;
+}
+
+/* ── FEATURE ROWS ──────────────────────────────────── */
+.feature-row {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 80px; align-items: center;
+  padding: 80px 48px;
+  max-width: 1200px; margin: 0 auto;
+  border-top: 1px solid var(--border);
+}
+.feature-row.reverse { direction: rtl; }
+.feature-row.reverse > * { direction: ltr; }
+
+.feature-list { list-style: none; display: flex; flex-direction: column; gap: 14px; }
+.feature-list li {
+  display: flex; align-items: flex-start; gap: 12px;
+  font-size: 14px; color: var(--muted); line-height: 1.5;
+}
+.feature-list li::before {
+  content: '◆';
+  color: var(--amber); font-size: 8px; margin-top: 5px; flex-shrink: 0;
+}
+
+/* Feature visual panels */
+.feat-panel {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  position: relative;
+}
+.feat-panel::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--amber), transparent);
+}
+.feat-panel-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  font-size: 11px; color: var(--muted);
+}
+.feat-panel-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--amber); }
+.feat-panel-body { padding: 20px; }
+
+/* Model comparison bars */
+.model-bars { display: flex; flex-direction: column; gap: 10px; }
+.model-bar-row { display: flex; align-items: center; gap: 12px; }
+.model-bar-name { font-size: 11px; color: var(--muted); width: 90px; flex-shrink: 0; }
+.model-bar-track {
+  flex: 1; height: 8px; background: rgba(255,255,255,0.05);
+  border-radius: 4px; overflow: hidden; position: relative;
+}
+.model-bar-fill {
+  height: 100%; border-radius: 4px;
+  transition: width 1.5s ease;
+}
+.model-bar-val { font-size: 11px; color: var(--amber); width: 38px; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Signal cards */
+.signal-cards { display: flex; flex-direction: column; gap: 8px; }
+.signal-card {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px; border-radius: 8px;
+  border: 1px solid var(--border); background: rgba(0,0,0,0.2);
+}
+.signal-action {
+  font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 4px;
+  letter-spacing: 0.5px; flex-shrink: 0;
+}
+.signal-action.buy  { background: rgba(74,222,128,0.15); color: #4ade80; }
+.signal-action.sell { background: rgba(248,113,113,0.15); color: #f87171; }
+.signal-action.hold { background: rgba(245,158,11,0.15);  color: var(--amber); }
+.signal-ticker { font-size: 12px; font-weight: 600; color: #fff; }
+.signal-model  { font-size: 10px; color: var(--muted); }
+.signal-price  { margin-left: auto; font-size: 12px; font-weight: 600; color: var(--amber); font-variant-numeric: tabular-nums; }
+.signal-conf   { font-size: 10px; color: var(--muted); }
+
+/* Equity chart mini */
+.equity-area { position: relative; }
+
+/* ── MODELS GRID ───────────────────────────────────── */
+.models-section {
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 80px 48px;
+}
+.models-inner { max-width: 1200px; margin: 0 auto; }
+.models-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px; margin-top: 48px;
+}
+.model-card {
+  background: rgba(0,0,0,0.3); border: 1px solid var(--border);
+  border-radius: 12px; padding: 20px;
+  transition: border-color 0.3s, transform 0.3s;
+  cursor: default;
+}
+.model-card:hover {
+  border-color: rgba(245,158,11,0.3);
+  transform: translateY(-4px);
+}
+.model-icon {
+  width: 36px; height: 36px; border-radius: 8px; margin-bottom: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+  background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.2);
+}
+.model-name { font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+.model-desc { font-size: 11px; color: var(--muted); line-height: 1.6; margin-bottom: 12px; }
+.model-mape {
+  font-size: 11px; color: var(--amber);
+  display: flex; align-items: center; gap: 5px;
+}
+
+/* ── TESTIMONIALS ──────────────────────────────────── */
+.testimonials-section { padding: 100px 48px; }
+.testimonials-inner { max-width: 1200px; margin: 0 auto; }
+.testimonials-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 20px; margin-top: 48px;
+}
+.testimonial {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 14px; padding: 24px;
+  transition: border-color 0.3s;
+}
+.testimonial:hover { border-color: rgba(245,158,11,0.2); }
+.testimonial-stars { color: var(--amber); font-size: 12px; margin-bottom: 12px; }
+.testimonial-text { font-size: 13px; color: var(--muted); line-height: 1.7; margin-bottom: 16px; }
+.testimonial-author { display: flex; align-items: center; gap: 10px; }
+.testimonial-avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--amber2), var(--dim));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; color: #000;
+}
+.testimonial-name { font-size: 12px; font-weight: 600; color: #fff; }
+.testimonial-role { font-size: 10px; color: var(--muted); }
+
+/* ── CTA BLOCK ─────────────────────────────────────── */
+.cta-section {
+  padding: 100px 48px;
+  text-align: center;
+  position: relative; overflow: hidden;
+}
+.cta-section::before {
+  content: '';
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 500px; height: 300px;
+  background: radial-gradient(ellipse, rgba(245,158,11,0.1) 0%, transparent 70%);
+  pointer-events: none;
+}
+.cta-title {
+  font-size: clamp(32px, 4vw, 56px); font-weight: 800;
+  color: #fff; letter-spacing: -1.5px; line-height: 1.1; margin-bottom: 20px;
+}
+.cta-title .amber {
+  background: linear-gradient(135deg, var(--amber2), var(--amber), var(--amber3));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.cta-sub { font-size: 16px; color: var(--muted); margin-bottom: 40px; }
+.cta-features {
+  display: flex; align-items: center; justify-content: center; gap: 24px;
+  margin-bottom: 40px; flex-wrap: wrap;
+}
+.cta-feat {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 13px; color: var(--muted);
+}
+.cta-feat::before { content: '✓'; color: var(--amber); font-weight: 700; }
+
+/* ── FOOTER ────────────────────────────────────────── */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 60px 48px 40px;
+}
+.footer-inner { max-width: 1200px; margin: 0 auto; }
+.footer-top {
+  display: grid; grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 48px; margin-bottom: 48px;
+}
+.footer-brand-name { font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 10px; }
+.footer-brand-desc { font-size: 13px; color: var(--muted); line-height: 1.6; }
+.footer-col-title { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--dim); margin-bottom: 16px; }
+.footer-link { display: block; font-size: 13px; color: var(--muted); margin-bottom: 10px; cursor: pointer; transition: color 0.2s; }
+.footer-link:hover { color: var(--text); }
+.footer-bottom {
+  border-top: 1px solid var(--border); padding-top: 24px;
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 12px; color: var(--dim);
+}
+.footer-disclaimer { font-size: 11px; color: var(--dim); line-height: 1.6; margin-top: 16px; }
+
+/* ── TICKER TAPE ───────────────────────────────────── */
+.ticker-tape {
+  background: rgba(0,0,0,0.3); border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  overflow: hidden; height: 36px;
+  display: flex; align-items: center;
+}
+.ticker-inner {
+  display: flex; gap: 48px;
+  animation: scroll-ticker 20s linear infinite;
+  white-space: nowrap;
+}
+@keyframes scroll-ticker {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.ticker-item {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11px; font-variant-numeric: tabular-nums; flex-shrink: 0;
+}
+.ticker-symbol { color: var(--text); font-weight: 600; }
+.ticker-price  { color: var(--muted); }
+.ticker-change.up   { color: #4ade80; }
+.ticker-change.down { color: #f87171; }
+
+/* Divider */
+.divider { border: none; border-top: 1px solid var(--border); }
+</style>
+</head>
+<body>
+
+<!-- ── NAV ──────────────────────────────────────────── -->
+<nav>
+  <a class="logo" href="#">
+    <div class="logo-mark">α</div>
+    AlphaSignal
+  </a>
+  <div class="nav-links">
+    <span class="nav-link">Прогноз</span>
+    <span class="nav-link">Сигналы</span>
+    <span class="nav-link">Модели</span>
+    <span class="nav-link">Цены</span>
+  </div>
+  <div class="nav-right">
+    <span class="nav-signin">Войти</span>
+    <div class="nav-cta">Попробовать бесплатно →</div>
+  </div>
+</nav>
+
+<!-- ── TICKER TAPE ────────────────────────────────── -->
+<div style="margin-top: 60px;" class="ticker-tape">
+  <div class="ticker-inner">
+    <!-- set 1 -->
+    <div class="ticker-item"><span class="ticker-symbol">S&P 500</span><span class="ticker-price">5 248.49</span><span class="ticker-change up">▲ +0.82%</span></div>
+    <div class="ticker-item"><span class="ticker-symbol">SBER</span><span class="ticker-price">309.12</span><span class="ticker-change up">▲ +1.24%</span></div>
+    <div class="ticker-item"><span class="ticker-symbol">LKOH</span><span class="ticker-price">7 621.00</span><span class="ticker-change down">▼ −0.31%</span></div>
+    <div class="ticker-item"><span class="ticker-symbol">BRENT</span><span class="ticker-price">83.14</span><span class="ticker-change up">▲ +0.55%</span></div>
+    <div class="ticker-item"><span class="ticker-symbol">AAPL</span><span class="ticker-price">189.30</span><span class="ticker-change down">▼ −0.18%</span></div>
+    <div class="ticker-item"><span class="ticker-symbol">NVDA</span><span class="ticker-price">867.40</span><span class="ticker-change up">▲ +2.11%</span></div>
+    <div class="ticker-item"><span class="ticker-symbol">GOLD</span><span class="ticker-price">2 341.80</span><span class="ticker-change up">▲ +0.44%</span></div>
+    <div class="ticker-item"><span class="ticker-symbol">NASDAQ</span><span class="ticker-price">16 380.84</span><span class="ticker-change up">▲ +1.03%</span></div>
+    <div class="ticker-item"><span class="ticker-symbol">GAZP</span><span class="ticker-price">163.45</span><span class="ticker-change down">▼ −0.72%</span></div>
+    <div class="ticker-item"><span class="ticker-symbol">WTI</span><span class="ticker-price">79.22</span><span class="ticker-change down">▼ −0.22%</span></div>
+    <!-- set 2 (clone for seamless loop) -->
+    <div class="ticker-item"><span class="ticker-symbol">S&P 500</span><span class="ticker-price">5 248.49</span><span class="ticker-change up">▲ +0.82%</span></div>
+    <div class="ticker-item"><span class="ticker-symbol">SBER</span><span class="ticker-price">309.12</span><span class="ticker-change up">▲ +1.24%</span></div>
+    <div class="ticker-item"><span class="ticker-symbol">LKOH</span><span class="ticker-price">7 621.00</span><span class="ticker-change down">▼ −0.31%</span></div>
+    <div class="ticker-item"><span class="ticker-symbol">BRENT</span><span class="ticker-price">83.14</span><span class="ticker-change up">▲ +0.55%</span></div>
+    <div class="ticker-item"><span class="ticker-symbol">AAPL</span><span class="ticker-price">189.30</span><span class="ticker-change down">▼ −0.18%</span></div>
+    <div class="ticker-item"><span class="ticker-symbol">NVDA</span><span class="ticker-price">867.40</span><span class="ticker-change up">▲ +2.11%</span></div>
+    <div class="ticker-item"><span class="ticker-symbol">GOLD</span><span class="ticker-price">2 341.80</span><span class="ticker-change up">▲ +0.44%</span></div>
+    <div class="ticker-item"><span class="ticker-symbol">NASDAQ</span><span class="ticker-price">16 380.84</span><span class="ticker-change up">▲ +1.03%</span></div>
+    <div class="ticker-item"><span class="ticker-symbol">GAZP</span><span class="ticker-price">163.45</span><span class="ticker-change down">▼ −0.72%</span></div>
+    <div class="ticker-item"><span class="ticker-symbol">WTI</span><span class="ticker-price">79.22</span><span class="ticker-change down">▼ −0.22%</span></div>
+  </div>
+</div>
+
+<!-- ── HERO ──────────────────────────────────────────── -->
+<div class="hero">
+  <div class="hero-grid"></div>
+
+  <div class="hero-badge">
+    <span>⚡</span> ML-прогнозирование финансовых рынков
+  </div>
+
+  <h1 class="hero-title">
+    Предсказывай рынки<br>с точностью <span class="amber">ансамблевых</span><br>нейросетей
+  </h1>
+
+  <p class="hero-sub">
+    8 моделей — ARIMA, GARCH, LSTM и гибриды — дают прогноз, торговые сигналы и бэктест для любого актива: S&P 500, MOEX, нефть, золото.
+  </p>
+
+  <div class="hero-btns">
+    <div class="btn-primary">Открыть платформу →</div>
+    <div class="btn-ghost">▶ Смотреть демо</div>
+  </div>
+
+  <!-- Dashboard mockup -->
+  <div class="hero-dashboard">
+    <div class="scanline"></div>
+    <div class="dash-bar">
+      <div class="dash-dot" style="background:#f87171"></div>
+      <div class="dash-dot" style="background:#fcd34d"></div>
+      <div class="dash-dot" style="background:#4ade80"></div>
+      <span class="dash-title">AlphaSignal — Forecast Dashboard</span>
+      <div class="dash-badge">● LIVE</div>
+    </div>
+    <div class="dash-body">
+      <div class="dash-sidebar">
+        <div class="sidebar-label">Активы</div>
+        <div class="sidebar-item active">
+          <div class="sidebar-dot" style="background:#4ade80"></div>
+          <div><div class="sidebar-ticker">^GSPC</div><div class="sidebar-model">Ансамбль</div></div>
+          <div class="sidebar-val">+34.2%</div>
+        </div>
+        <div class="sidebar-item">
+          <div class="sidebar-dot" style="background:#818cf8"></div>
+          <div><div class="sidebar-ticker">SBER.ME</div><div class="sidebar-model">ARIMA+LSTM</div></div>
+          <div class="sidebar-val">+18.7%</div>
+        </div>
+        <div class="sidebar-item">
+          <div class="sidebar-dot" style="background:#f472b6"></div>
+          <div><div class="sidebar-ticker">LKOH.ME</div><div class="sidebar-model">Triple Hybrid</div></div>
+          <div class="sidebar-val">+22.1%</div>
+        </div>
+        <div class="sidebar-item">
+          <div class="sidebar-dot" style="background:#fcd34d"></div>
+          <div><div class="sidebar-ticker">BZ=F</div><div class="sidebar-model">GARCH</div></div>
+          <div class="sidebar-val">+9.4%</div>
+        </div>
+        <div class="sidebar-label" style="margin-top:8px">Модели</div>
+        <div style="font-size:10px;color:var(--muted);padding:0 8px;line-height:2">
+          <div>ARIMA · GARCH · LSTM</div>
+          <div>ARIMA+LSTM · ARIMA+GRU</div>
+          <div>GARCH+LSTM · Triple Hybrid</div>
+          <div style="color:var(--amber)">★ Ensemble</div>
+        </div>
+      </div>
+      <div class="dash-main">
+        <div class="dash-metrics">
+          <div class="metric">
+            <div class="metric-label">MAPE</div>
+            <div class="metric-val amber">0.78%</div>
+            <div class="metric-sub">Ensemble · S&P 500</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Sharpe</div>
+            <div class="metric-val amber">1.87</div>
+            <div class="metric-sub">momentum strategy</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Доходность</div>
+            <div class="metric-val green">+34.2%</div>
+            <div class="metric-sub">vs B&H +21.4%</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Max DD</div>
+            <div class="metric-val red">−8.3%</div>
+            <div class="metric-sub">max drawdown</div>
+          </div>
+        </div>
+        <!-- Animated SVG chart -->
+        <svg class="dash-chart" viewBox="0 0 620 130" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.3"/>
+              <stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <!-- Grid -->
+          <line x1="0" y1="32" x2="620" y2="32" stroke="#2a2418" stroke-width="1"/>
+          <line x1="0" y1="64" x2="620" y2="64" stroke="#2a2418" stroke-width="1"/>
+          <line x1="0" y1="96" x2="620" y2="96" stroke="#2a2418" stroke-width="1"/>
+          <!-- Actual price line -->
+          <path d="M0,80 C20,75 40,85 60,70 C80,55 100,60 120,50 C140,40 160,55 180,45 C200,35 220,40 240,30 C260,20 280,35 300,25 C320,15 340,20 360,12 C380,5 400,18 420,10 C440,3 460,15 480,8 C500,2 520,10 540,5 C560,1 580,8 620,4"
+            fill="url(#chartGrad)" stroke="#f59e0b" stroke-width="2"
+            style="stroke-dasharray:800;stroke-dashoffset:800;animation:draw-line 2s ease 0.5s forwards"/>
+          <!-- Forecast line (dashed) -->
+          <path d="M540,5 C560,2 580,-3 620,-8"
+            fill="none" stroke="#f59e0b" stroke-width="2" stroke-dasharray="5,4" opacity="0.6"/>
+          <!-- Reference dot -->
+          <circle cx="540" cy="5" r="4" fill="#f59e0b" opacity="0.9"/>
+          <!-- Label -->
+          <text x="548" y="2" font-size="9" fill="#f59e0b" opacity="0.8">Прогноз</text>
+          <!-- X labels -->
+          <text x="0"   y="126" font-size="8" fill="#3a3020">Jan</text>
+          <text x="90"  y="126" font-size="8" fill="#3a3020">Apr</text>
+          <text x="180" y="126" font-size="8" fill="#3a3020">Jul</text>
+          <text x="270" y="126" font-size="8" fill="#3a3020">Oct</text>
+          <text x="360" y="126" font-size="8" fill="#3a3020">2024</text>
+          <text x="480" y="126" font-size="8" fill="#f59e0b" opacity="0.7">→ Прогноз</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── STATS BAR ──────────────────────────────────── -->
+<div class="stats-bar reveal">
+  <div class="stat-item">
+    <div class="stat-val" data-target="8">8</div>
+    <div class="stat-lbl">ML-моделей</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-val">0.78%</div>
+    <div class="stat-lbl">MAPE — лучший результат</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-val">+34%</div>
+    <div class="stat-lbl">Доходность бэктеста</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-val">40+</div>
+    <div class="stat-lbl">Торговых инструментов</div>
+  </div>
+</div>
+
+<!-- ── FEATURE 1: Forecast ─────────────────────────── -->
+<div class="feature-row reveal">
+  <div>
+    <div class="section-eyebrow">Прогнозирование</div>
+    <h2 class="section-title">Предсказывай цены с<br>точностью нейросетей</h2>
+    <p class="section-sub">От классического ARIMA до гибридных архитектур ARIMA+GRU и ансамблей — выбирай модель под задачу и получай прогноз за секунды.</p>
+    <ul class="feature-list">
+      <li>Прогноз на любой горизонт — от дней до месяцев</li>
+      <li>Мультипанельный режим: сравнивай активы параллельно</li>
+      <li>Метрики точности MAE, RMSE, MAPE для каждой модели</li>
+      <li>5 сценариев: медвежий → базовый → бычий</li>
+      <li>Интерактивный зум и инструменты рисования</li>
+    </ul>
+  </div>
+  <div class="feat-panel">
+    <div class="feat-panel-header">
+      <div class="feat-panel-dot"></div>
+      Сравнение точности моделей — S&P 500
+    </div>
+    <div class="feat-panel-body">
+      <div style="font-size:10px;color:var(--muted);margin-bottom:14px;text-transform:uppercase;letter-spacing:0.8px">MAPE ↓ (меньше = точнее)</div>
+      <div class="model-bars">
+        <div class="model-bar-row">
+          <span class="model-bar-name">ARIMA</span>
+          <div class="model-bar-track"><div class="model-bar-fill" style="width:93%;background:linear-gradient(90deg,#3a3020,#7a6a4a)"></div></div>
+          <span class="model-bar-val">1.82%</span>
+        </div>
+        <div class="model-bar-row">
+          <span class="model-bar-name">GARCH</span>
+          <div class="model-bar-track"><div class="model-bar-fill" style="width:100%;background:linear-gradient(90deg,#3a3020,#7a6a4a)"></div></div>
+          <span class="model-bar-val">2.14%</span>
+        </div>
+        <div class="model-bar-row">
+          <span class="model-bar-name">LSTM</span>
+          <div class="model-bar-track"><div class="model-bar-fill" style="width:65%;background:linear-gradient(90deg,#4a3a1a,#d97706)"></div></div>
+          <span class="model-bar-val">1.34%</span>
+        </div>
+        <div class="model-bar-row">
+          <span class="model-bar-name">ARIMA+LSTM</span>
+          <div class="model-bar-track"><div class="model-bar-fill" style="width:47%;background:linear-gradient(90deg,#5a4010,#f59e0b)"></div></div>
+          <span class="model-bar-val">0.96%</span>
+        </div>
+        <div class="model-bar-row">
+          <span class="model-bar-name">Triple</span>
+          <div class="model-bar-track"><div class="model-bar-fill" style="width:42%;background:linear-gradient(90deg,#5a4010,#f59e0b)"></div></div>
+          <span class="model-bar-val">0.87%</span>
+        </div>
+        <div class="model-bar-row">
+          <span class="model-bar-name" style="color:var(--amber)">★ Ensemble</span>
+          <div class="model-bar-track"><div class="model-bar-fill" style="width:38%;background:linear-gradient(90deg,#d97706,#fcd34d)"></div></div>
+          <span class="model-bar-val" style="color:var(--amber3)">0.78%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── FEATURE 2: Signals ─────────────────────────── -->
+<div class="feature-row reverse reveal" style="border-top:1px solid var(--border)">
+  <div>
+    <div class="section-eyebrow">Торговые сигналы</div>
+    <h2 class="section-title">Сигналы BUY / SELL<br>на основе прогноза</h2>
+    <p class="section-sub">Алгоритм генерирует чёткие сигналы для входа и выхода из позиции — на исторических данных и с заглядыванием в будущее.</p>
+    <ul class="feature-list">
+      <li>3 стратегии: momentum, mean-reversion, trend-following</li>
+      <li>Уверенность сигнала в процентах для каждой сделки</li>
+      <li>Прогноз сигналов на N дней вперёд</li>
+      <li>Фильтрация по минимальному порогу уверенности</li>
+      <li>Экспорт сигналов в таблицу</li>
+    </ul>
+  </div>
+  <div class="feat-panel">
+    <div class="feat-panel-header">
+      <div class="feat-panel-dot"></div>
+      Активные сигналы · Обновлено только что
+    </div>
+    <div class="feat-panel-body">
+      <div class="signal-cards">
+        <div class="signal-card">
+          <span class="signal-action buy">BUY</span>
+          <div><div class="signal-ticker">^GSPC</div><div class="signal-model">Ensemble</div></div>
+          <div class="signal-price">5 248.49<br><span class="signal-conf">уверенность 87%</span></div>
+        </div>
+        <div class="signal-card">
+          <span class="signal-action sell">SELL</span>
+          <div><div class="signal-ticker">GAZP.ME</div><div class="signal-model">ARIMA+LSTM</div></div>
+          <div class="signal-price">163.45<br><span class="signal-conf">уверенность 72%</span></div>
+        </div>
+        <div class="signal-card">
+          <span class="signal-action buy">BUY</span>
+          <div><div class="signal-ticker">GC=F (Золото)</div><div class="signal-model">Triple Hybrid</div></div>
+          <div class="signal-price">2 341.80<br><span class="signal-conf">уверенность 91%</span></div>
+        </div>
+        <div class="signal-card">
+          <span class="signal-action hold">HOLD</span>
+          <div><div class="signal-ticker">NVDA</div><div class="signal-model">GARCH+LSTM</div></div>
+          <div class="signal-price">867.40<br><span class="signal-conf">уверенность 58%</span></div>
+        </div>
+        <div class="signal-card" style="border-color:rgba(245,158,11,0.2);background:rgba(245,158,11,0.04)">
+          <span class="signal-action buy">BUY</span>
+          <div><div class="signal-ticker">BZ=F (Brent)</div><div class="signal-model" style="color:var(--amber)">★ Прогноз +7d</div></div>
+          <div class="signal-price" style="color:var(--amber3)">83.14<br><span class="signal-conf">уверенность 79%</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── FEATURE 3: Backtest ──────────────────────────── -->
+<div class="feature-row reveal" style="border-top:1px solid var(--border)">
+  <div>
+    <div class="section-eyebrow">Бэктестирование</div>
+    <h2 class="section-title">Проверь стратегию<br>на истории рынка</h2>
+    <p class="section-sub">Запусти бэктест любой комбинации актив × модель × стратегия и получи полный отчёт: equity curve, Sharpe, drawdown, win rate.</p>
+    <ul class="feature-list">
+      <li>Кривая капитала vs стратегия Buy & Hold</li>
+      <li>Sharpe ratio, Max Drawdown, Win Rate, Profit Factor</li>
+      <li>Комиссия, проскальзывание, реинвестирование</li>
+      <li>Таблица всех сделок с датами и P&L</li>
+      <li>Начальный капитал от 1 000 до 1 000 000</li>
+    </ul>
+  </div>
+  <div class="feat-panel">
+    <div class="feat-panel-header">
+      <div class="feat-panel-dot"></div>
+      Backtest · ^GSPC · Ensemble · 2018–2024
+    </div>
+    <div class="feat-panel-body">
+      <div style="display:flex;gap:12px;margin-bottom:16px">
+        <div class="metric" style="flex:1">
+          <div class="metric-label">Доходность</div>
+          <div class="metric-val green" style="font-size:22px">+34.2%</div>
+          <div class="metric-sub">B&H: +21.4%</div>
+        </div>
+        <div class="metric" style="flex:1">
+          <div class="metric-label">Sharpe</div>
+          <div class="metric-val amber" style="font-size:22px">1.87</div>
+          <div class="metric-sub">отлично (&gt;1)</div>
+        </div>
+        <div class="metric" style="flex:1">
+          <div class="metric-label">Win Rate</div>
+          <div class="metric-val amber" style="font-size:22px">61%</div>
+          <div class="metric-sub">42 сделки</div>
+        </div>
+      </div>
+      <!-- Mini equity curve -->
+      <svg viewBox="0 0 380 80" style="width:100%;height:80px">
+        <defs>
+          <linearGradient id="eqGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#4ade80" stop-opacity="0.3"/>
+            <stop offset="100%" stop-color="#4ade80" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <path d="M0,70 C20,68 40,65 60,58 C80,51 90,55 110,45 C130,35 150,40 170,30 C190,22 210,28 230,20 C250,13 270,18 290,12 C310,6 330,10 350,7 C365,5 372,4 380,2"
+          fill="url(#eqGrad)" stroke="#4ade80" stroke-width="1.5"/>
+        <!-- B&H line -->
+        <path d="M0,70 C100,60 200,45 380,30"
+          fill="none" stroke="#7a6a4a" stroke-width="1" stroke-dasharray="4,3"/>
+        <text x="320" y="28" font-size="8" fill="#4ade80">Стратегия</text>
+        <text x="320" y="44" font-size="8" fill="#7a6a4a">Buy &amp; Hold</text>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<!-- ── MODELS SECTION ─────────────────────────────── -->
+<div class="models-section">
+  <div class="models-inner">
+    <div class="reveal" style="text-align:center">
+      <div class="section-eyebrow" style="text-align:center">Арсенал моделей</div>
+      <h2 class="section-title" style="text-align:center;max-width:600px;margin:0 auto 16px">От классики до<br>гибридных архитектур</h2>
+      <p style="font-size:16px;color:var(--muted);text-align:center">Каждая модель обучена на ценовых рядах. Ансамбль усредняет лучшие предсказания.</p>
+    </div>
+    <div class="models-grid reveal">
+      <div class="model-card">
+        <div class="model-icon">📐</div>
+        <div class="model-name">ARIMA</div>
+        <div class="model-desc">Классическая авторегрессия. Хорошо ловит линейные тренды и сезонность.</div>
+        <div class="model-mape">◆ MAPE 1.82%</div>
+      </div>
+      <div class="model-card">
+        <div class="model-icon">📊</div>
+        <div class="model-name">GARCH</div>
+        <div class="model-desc">Моделирует волатильность — незаменим для оценки риска и хвостовых событий.</div>
+        <div class="model-mape">◆ MAPE 2.14%</div>
+      </div>
+      <div class="model-card">
+        <div class="model-icon">🧠</div>
+        <div class="model-name">LSTM</div>
+        <div class="model-desc">Нейросеть с долгой памятью. Улавливает нелинейные паттерны в длинных рядах.</div>
+        <div class="model-mape">◆ MAPE 1.34%</div>
+      </div>
+      <div class="model-card">
+        <div class="model-icon">⚡</div>
+        <div class="model-name">ARIMA + LSTM</div>
+        <div class="model-desc">Линейный ARIMA убирает тренд, LSTM дообрабатывает остатки.</div>
+        <div class="model-mape">◆ MAPE 0.96%</div>
+      </div>
+      <div class="model-card">
+        <div class="model-icon">🔀</div>
+        <div class="model-name">ARIMA + GRU</div>
+        <div class="model-desc">Быстрее LSTM, сопоставимая точность. Аналог ARIMA+LSTM с GRU-блоком.</div>
+        <div class="model-mape">◆ MAPE 0.98%</div>
+      </div>
+      <div class="model-card">
+        <div class="model-icon">🌊</div>
+        <div class="model-name">GARCH + LSTM</div>
+        <div class="model-desc">Совместное моделирование волатильности и уровня цены.</div>
+        <div class="model-mape">◆ MAPE 1.09%</div>
+      </div>
+      <div class="model-card">
+        <div class="model-icon">🔱</div>
+        <div class="model-name">Triple Hybrid</div>
+        <div class="model-desc">ARIMA + GARCH + LSTM в одной архитектуре. Топ-2 по точности.</div>
+        <div class="model-mape">◆ MAPE 0.87%</div>
+      </div>
+      <div class="model-card" style="border-color:rgba(245,158,11,0.3);background:rgba(245,158,11,0.05)">
+        <div class="model-icon" style="background:rgba(245,158,11,0.2);border-color:rgba(245,158,11,0.4)">★</div>
+        <div class="model-name" style="color:var(--amber)">Ensemble</div>
+        <div class="model-desc">Взвешенное усреднение всех моделей. Наилучшая точность на большинстве активов.</div>
+        <div class="model-mape" style="color:var(--amber3)">★ MAPE 0.78% — лучший</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── TESTIMONIALS ───────────────────────────────── -->
+<div class="testimonials-section">
+  <div class="testimonials-inner">
+    <div class="reveal" style="text-align:center">
+      <div class="section-eyebrow" style="text-align:center">Отзывы</div>
+      <h2 class="section-title" style="text-align:center">Что говорят пользователи</h2>
+    </div>
+    <div class="testimonials-grid reveal">
+      <div class="testimonial">
+        <div class="testimonial-stars">★★★★★</div>
+        <p class="testimonial-text">«Ensemble модель стабильно даёт MAPE &lt;1% на S&P 500. Ни один другой открытый инструмент не приближается к этой точности.»</p>
+        <div class="testimonial-author">
+          <div class="testimonial-avatar">АК</div>
+          <div><div class="testimonial-name">Алексей К.</div><div class="testimonial-role">Quant-аналитик</div></div>
+        </div>
+      </div>
+      <div class="testimonial">
+        <div class="testimonial-stars">★★★★★</div>
+        <p class="testimonial-text">«Backtesting с комиссией и проскальзыванием — наконец-то честный результат. Sharpe 1.87 — это реально достижимо с momentum-стратегией.»</p>
+        <div class="testimonial-author">
+          <div class="testimonial-avatar">МВ</div>
+          <div><div class="testimonial-name">Михаил В.</div><div class="testimonial-role">Управляющий портфелем</div></div>
+        </div>
+      </div>
+      <div class="testimonial">
+        <div class="testimonial-stars">★★★★☆</div>
+        <p class="testimonial-text">«Сигналы на MOEX работают лучше, чем я ожидал. Особенно Triple Hybrid на нефтяниках — очень чёткие точки входа.»</p>
+        <div class="testimonial-author">
+          <div class="testimonial-avatar">ДС</div>
+          <div><div class="testimonial-name">Дмитрий С.</div><div class="testimonial-role">Частный инвестор</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── CTA ────────────────────────────────────────── -->
+<div class="cta-section reveal" style="border-top:1px solid var(--border)">
+  <h2 class="cta-title">Начни прогнозировать<br><span class="amber">прямо сейчас</span></h2>
+  <p class="cta-sub">Без регистрации. Без кредитной карты. Просто выбери актив и модель.</p>
+  <div class="cta-features">
+    <span class="cta-feat">8 ML-моделей</span>
+    <span class="cta-feat">40+ инструментов</span>
+    <span class="cta-feat">Торговые сигналы</span>
+    <span class="cta-feat">Бэктест с Sharpe</span>
+    <span class="cta-feat">Бесплатно</span>
+  </div>
+  <div class="btn-primary" style="display:inline-flex;font-size:16px;padding:16px 36px">
+    Открыть платформу →
+  </div>
+</div>
+
+<!-- ── FOOTER ─────────────────────────────────────── -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-top">
+      <div>
+        <div class="logo" style="margin-bottom:14px">
+          <div class="logo-mark" style="animation:none;box-shadow:none">α</div>
+          AlphaSignal
+        </div>
+        <p class="footer-brand-desc">ML-платформа для прогнозирования финансовых рынков. ARIMA, GARCH, LSTM, гибридные модели и ансамбли для любого актива.</p>
+        <p class="footer-disclaimer" style="margin-top:14px">Не является инвестиционной рекомендацией. Все прогнозы носят информационный характер. Прошлая доходность не гарантирует будущих результатов.</p>
+      </div>
+      <div>
+        <div class="footer-col-title">Платформа</div>
+        <a class="footer-link">Прогноз</a>
+        <a class="footer-link">Торговые сигналы</a>
+        <a class="footer-link">Бэктест</a>
+        <a class="footer-link">Сравнение моделей</a>
+      </div>
+      <div>
+        <div class="footer-col-title">Модели</div>
+        <a class="footer-link">ARIMA</a>
+        <a class="footer-link">GARCH</a>
+        <a class="footer-link">LSTM / GRU</a>
+        <a class="footer-link">Гибридные</a>
+        <a class="footer-link">Ensemble</a>
+      </div>
+      <div>
+        <div class="footer-col-title">Активы</div>
+        <a class="footer-link">S&P 500, NASDAQ</a>
+        <a class="footer-link">MOEX (Сбер, Лукойл…)</a>
+        <a class="footer-link">Нефть Brent / WTI</a>
+        <a class="footer-link">Золото, Газ</a>
+        <a class="footer-link">Технологии (AAPL, NVDA…)</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2025 AlphaSignal. Дипломная работа МТУСИ.</span>
+      <span>Сделано с ♥ и TensorFlow</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+// Intersection Observer для reveal-анимаций
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.classList.add('visible');
+      observer.unobserve(e.target);
+    }
+  });
+}, { threshold: 0.1 });
+
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+
+</body>
+</html>
