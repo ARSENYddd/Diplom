@@ -602,7 +602,7 @@ function Testimonials() {
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-full flex items-center justify-center
                                 text-[12px] font-bold text-black
-                                bg-gradient-to-br from-amber-500 to-muted">
+                                bg-gradient-to-br from-amber-400 to-amber-600">
                   {t.initials}
                 </div>
                 <div>
