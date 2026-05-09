@@ -83,7 +83,7 @@ def run_lstm(ticker: str, start: str, end: str, window: int = 60, n_future: int 
         base_prices  = scaler.inverse_transform(
             np.array(base_scaled).reshape(-1, 1)
         ).flatten()
-        future_dates = future_trading_dates(test_dates[-1], n_future)
+        future_dates = future_trading_dates(test_dates[-1], n_future, interval)
         all_dates   += future_dates
         all_actual  += [None] * n_future
         all_pred    += bootstrap_future(base_prices, residuals, seed=seed).tolist()

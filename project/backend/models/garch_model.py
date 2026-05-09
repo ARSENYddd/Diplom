@@ -57,7 +57,7 @@ def run_garch(ticker: str, start: str, end: str, window: int = 60, n_future: int
             last_p = last_p * np.exp(r)
             base_prices.append(last_p)
         base_prices  = np.array(base_prices)
-        future_dates = future_trading_dates(test_dates[-1], n_future)
+        future_dates = future_trading_dates(test_dates[-1], n_future, interval)
         all_dates   += future_dates
         all_actual  += [None] * n_future
         all_pred    += bootstrap_future(base_prices, residuals, seed=seed).tolist()

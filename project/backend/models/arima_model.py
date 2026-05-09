@@ -44,7 +44,7 @@ def run_arima(ticker: str, start: str, end: str, window: int = 60, n_future: int
     scenarios = []
     if n_future > 0:
         base         = model.predict(n_periods=n_future)
-        future_dates = future_trading_dates(test_dates[-1], n_future)
+        future_dates = future_trading_dates(test_dates[-1], n_future, interval)
         all_dates   += future_dates
         all_actual  += [None] * n_future
         all_pred    += bootstrap_future(base, residuals, seed=seed).tolist()

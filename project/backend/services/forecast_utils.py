@@ -1,11 +1,39 @@
 """Shared utilities for model forecasting."""
 import numpy as np
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 
-def future_trading_dates(last_date_str: str, n: int) -> list:
-    """Return n trading dates (Mon-Fri) after last_date_str."""
-    d = date.fromisoformat(last_date_str)
+def future_trading_dates(last_date_str: str, n: int, interval: str = "1d") -> list:
+    """
+    Return n future timestamps after last_date_str, respecting the data interval.
+
+    - 1h / 6h / 12h → hourly timestamps with the given step
+    - 1wk           → weekly (calendar) dates
+    - 1mo           → monthly (≈30-day) dates
+    - 1d (default)  → Mon–Fri business days only
+    """
+    if interval in ("1h", "6h", "12h"):
+        step_hours = {"1h": 1, "6h": 6, "12h": 12}[interval]
+        # Accept both "YYYY-MM-DD" and "YYYY-MM-DD HH:MM" formats
+        try:
+            dt = datetime.fromisoformat(last_date_str)
+        except ValueError:
+            dt = datetime.fromisoformat(last_date_str[:10] + " 00:00:00")
+        return [
+            (dt + timedelta(hours=step_hours * i)).strftime("%Y-%m-%d %H:%M")
+            for i in range(1, n + 1)
+        ]
+
+    if interval == "1wk":
+        d = date.fromisoformat(last_date_str[:10])
+        return [(d + timedelta(weeks=i)).strftime("%Y-%m-%d") for i in range(1, n + 1)]
+
+    if interval == "1mo":
+        d = date.fromisoformat(last_date_str[:10])
+        return [(d + timedelta(days=30 * i)).strftime("%Y-%m-%d") for i in range(1, n + 1)]
+
+    # Default: daily Mon–Fri
+    d = date.fromisoformat(last_date_str[:10])
     result = []
     while len(result) < n:
         d += timedelta(days=1)

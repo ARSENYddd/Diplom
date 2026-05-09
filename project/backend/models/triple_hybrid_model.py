@@ -147,7 +147,7 @@ def run_triple_hybrid(ticker: str, start: str, end: str, window: int = 60, n_fut
             rolling.append([lstm_corr_sc, next_var_sc])
 
         base_prices  = np.array(base_prices)
-        future_dates = future_trading_dates(test_dates[-1], n_future)
+        future_dates = future_trading_dates(test_dates[-1], n_future, interval)
         all_dates   += future_dates
         all_actual  += [None] * n_future
         all_pred    += bootstrap_future(base_prices, residuals, seed=seed).tolist()

@@ -99,8 +99,9 @@ class ForecastRequest(BaseModel):
         "triple_hybrid", "ensemble"
     ] = "arima_lstm"
     window: int = 60
-    today: str = ""  # client-supplied "today" date (YYYY-MM-DD); avoids server clock issues
-    interval: str = "1d"  # data interval: 1h, 6h, 12h, 1d, 1wk, 1mo
+    today: str = ""        # client-supplied "today" date (YYYY-MM-DD); avoids server clock issues
+    interval: str = "1d"   # data interval: 1h, 6h, 12h, 1d, 1wk, 1mo
+    n_predict: int = 0     # explicit forecast horizon (steps); 0 = infer from end date
 
 
 @app.get("/api/data")
@@ -135,6 +136,10 @@ async def forecast(req: ForecastRequest):
             data_end = min(req.end, req.today)
         else:
             data_end = req.end
+
+        # n_predict overrides date-based calculation (used for intraday)
+        if req.n_predict > 0:
+            n_future = req.n_predict
 
         loop = asyncio.get_event_loop()
         _interval = req.interval or "1d"
@@ -180,7 +185,8 @@ class BacktestRequest(BaseModel):
     slippage: float = 0.0005
     reinvest: bool = True
     risk_free_rate: float = 0.0
-    interval: str = "1d"  # data interval: 1h, 6h, 12h, 1d, 1wk, 1mo
+    interval: str = "1d"   # data interval: 1h, 6h, 12h, 1d, 1wk, 1mo
+    n_predict: int = 0     # explicit forecast horizon (steps); 0 = infer from end date
 
 
 @app.post("/api/backtest")
@@ -197,6 +203,10 @@ async def backtest(req: BacktestRequest):
         n_future = _count_future_days(req.end, req.today)
         n_future = min(n_future, 500)
         data_end = min(req.end, req.today) if req.today else req.end
+
+        # n_predict overrides date-based calculation (used for intraday)
+        if req.n_predict > 0:
+            n_future = req.n_predict
 
         loop = asyncio.get_event_loop()
         _interval = req.interval or "1d"

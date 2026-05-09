@@ -89,9 +89,13 @@ const MODEL_COLORS = {
 const sel = 'bg-[var(--surface)] border border-[var(--border)] rounded-lg text-sm text-warm focus:outline-none focus:border-amber-400 transition-colors px-2 py-1.5'
 
 const TIMEFRAMES = [
-  { key: '1h',  label: '1ч',   intraday: true,  defaultDays: 90,  maxDays: 729 },
-  { key: '6h',  label: '6ч',   intraday: true,  defaultDays: 180, maxDays: 729 },
-  { key: '12h', label: '12ч',  intraday: true,  defaultDays: 365, maxDays: 729 },
+  // nPredict: steps to forecast ahead
+  // 1h  → 24 steps = 24 hours  ≈ 1 торговый день
+  // 6h  → 12 steps = 72 hours  ≈ 3 дня
+  // 12h → 14 steps = 168 hours ≈ 1 неделя
+  { key: '1h',  label: '1ч',   intraday: true,  defaultDays: 90,  maxDays: 729, nPredict: 24, horizon: '1 день'    },
+  { key: '6h',  label: '6ч',   intraday: true,  defaultDays: 180, maxDays: 729, nPredict: 12, horizon: '3 дня'     },
+  { key: '12h', label: '12ч',  intraday: true,  defaultDays: 365, maxDays: 729, nPredict: 14, horizon: '1 неделя'  },
   { key: '1d',  label: '1д',   intraday: false },
   { key: '1wk', label: '1н',   intraday: false },
   { key: '1mo', label: '1мес', intraday: false },
@@ -205,14 +209,15 @@ export default function ChartPanel({ panelId, onRemove, defaultParams = {} }) {
     setSignals(null)  // сбрасываем старые сигналы до прихода новых
     const today = new Date().toISOString().slice(0, 10)
     try {
-      const result = await fetchForecast({ ticker, model, start, end, window: 60, today, interval })
+      const n_predict = tf.nPredict ?? 0
+      const result = await fetchForecast({ ticker, model, start, end, window: 60, today, interval, n_predict })
       setData(result)
 
       // Автоматически запрашиваем сигналы после успешного прогноза
       try {
         const bt = await fetchBacktest({
           ticker, model, start, end,
-          window: 60, today, interval,
+          window: 60, today, interval, n_predict,
           strategy: 'momentum',
           commission: 0.001,
           initial_capital: 10000,
@@ -284,8 +289,8 @@ export default function ChartPanel({ panelId, onRemove, defaultParams = {} }) {
               min={start} max={today()}
               className={sel + ' w-36'} title="Конец периода (не позже сегодня)" />
             <span className="text-[11px] text-blue-400 bg-blue-900/30 border border-blue-700/40 px-2 py-1 rounded-lg flex-shrink-0"
-              title="Прогноз строится от последней доступной свечи">
-              ⚡ до текущего момента
+              title={`Данные: последние ${tf.defaultDays} дней → сейчас. Прогноз: ${tf.nPredict} свечей вперёд (${tf.horizon})`}>
+              ⚡ прогноз: {tf.horizon}
             </span>
           </div>
         ) : (
