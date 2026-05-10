@@ -12,7 +12,7 @@ from typing import Literal
 import asyncio
 from datetime import date, timedelta
 
-from services.data_service import get_price_series
+from services.data_service import get_price_series, get_ohlcv_series
 from services.signals import generate_signals, generate_future_signals, available_strategies
 from services.backtest import run_backtest
 from models.arima_model import run_arima
@@ -115,6 +115,22 @@ async def get_data(
         data_end = min(end, today) if today else end
         dates, prices = get_price_series(ticker, start, data_end)
         return {"dates": dates, "prices": prices}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.get("/api/ohlcv")
+async def get_ohlcv(
+    ticker:   str = Query("^GSPC"),
+    start:    str = Query("2015-01-01"),
+    end:      str = Query("2024-01-01"),
+    interval: str = Query("1d"),
+    today:    str = Query(""),
+):
+    try:
+        data_end = min(end, today) if today else end
+        ohlcv = get_ohlcv_series(ticker, start, data_end, interval)
+        return {"ohlcv": ohlcv, "interval": interval}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
