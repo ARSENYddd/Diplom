@@ -153,13 +153,14 @@ export default function CandlestickChart({ ticker, start, end, interval = '1d' }
       })
       rsiChartRef.current = rsiChart
 
+      const rsiData = computeRSI(closes, 14)
       rsiChart.addLineSeries({
         color: '#f59e0b', lineWidth: 1, title: 'RSI(14)',
         lastValueVisible: true, priceLineVisible: false,
-      }).setData(computeRSI(closes, 14))
+      }).setData(rsiData)
 
-      // Overbought / oversold reference lines
-      const refTimes = closes.map(d => d.time)
+      // Overbought / oversold reference lines — aligned to RSI data range
+      const refTimes = rsiData.map(d => d.time)
       rsiChart.addLineSeries({
         color: '#f87171', lineWidth: 1, lineStyle: LineStyle.Dashed,
         lastValueVisible: false, priceLineVisible: false,

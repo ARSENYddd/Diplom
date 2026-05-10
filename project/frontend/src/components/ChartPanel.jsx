@@ -440,7 +440,7 @@ export default function ChartPanel({ panelId, onRemove, defaultParams = {} }) {
           <CandlestickChart
             ticker={ticker}
             start={start}
-            end={end}
+            end={isFuture ? today() : end}
             interval={interval}
           />
         ) : (
