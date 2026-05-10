@@ -5,6 +5,7 @@ import {
 } from 'recharts'
 import DrawingLayer from './DrawingLayer'
 import DrawingToolbar from './DrawingToolbar'
+import { IconBear, IconBull, IconLineDown, IconLineFlat, IconLineUp } from './Icons'
 
 // ─── Tooltip ────────────────────────────────────────────────────────────────
 const CustomTooltip = ({ active, payload, label }) => {
@@ -22,11 +23,11 @@ const CustomTooltip = ({ active, payload, label }) => {
 }
 
 const SCENARIO_LABELS = {
-  'Медвежий':      { emoji: '🐻', desc: 'Негативный сценарий' },
-  'Умеренный':     { emoji: '📉', desc: 'Умеренное снижение' },
-  'Базовый':       { emoji: '📊', desc: 'Базовый прогноз' },
-  'Оптимистичный': { emoji: '📈', desc: 'Умеренный рост' },
-  'Бычий':         { emoji: '🐂', desc: 'Позитивный сценарий' },
+  'Медвежий':      { icon: <IconBear     size={14}/>, desc: 'Негативный сценарий' },
+  'Умеренный':     { icon: <IconLineDown size={14}/>, desc: 'Умеренное снижение'  },
+  'Базовый':       { icon: <IconLineFlat size={14}/>, desc: 'Базовый прогноз'     },
+  'Оптимистичный': { icon: <IconLineUp   size={14}/>, desc: 'Умеренный рост'      },
+  'Бычий':         { icon: <IconBull     size={14}/>, desc: 'Позитивный сценарий' },
 }
 
 // ─── Scrollbar (нативный range slider + zoom buttons) ───────────────────────
@@ -484,7 +485,7 @@ export default function ForecastChart({ data, compact = false, signals = null })
                   >
                     <span className="w-2 h-2 rounded-full flex-shrink-0"
                       style={{ background: hidden ? '#475569' : sc.color }} />
-                    {meta.emoji} {sc.name}
+                    <span className="inline-flex items-center gap-1">{meta.icon} {sc.name}</span>
                   </button>
                 )
               })}

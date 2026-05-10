@@ -2,7 +2,7 @@ import { useState } from 'react'
 
 const TICKER_GROUPS = [
   {
-    group: '🇺🇸 США — Индексы',
+    group: 'США — Индексы',
     tickers: [
       { value: '^GSPC',  label: 'S&P 500' },
       { value: '^DJI',   label: 'Dow Jones' },
@@ -10,7 +10,7 @@ const TICKER_GROUPS = [
     ],
   },
   {
-    group: '🇷🇺 Нефтяной сектор РФ (MOEX)',
+    group: 'MOEX — Нефтяной сектор',
     moex: true,
     tickers: [
       { value: 'GAZP.ME', label: 'Газпром' },
@@ -24,7 +24,7 @@ const TICKER_GROUPS = [
     ],
   },
   {
-    group: '🇷🇺 Другие секторы РФ (MOEX)',
+    group: 'MOEX — Другие секторы',
     moex: true,
     tickers: [
       { value: 'SBER.ME', label: 'Сбербанк' },
@@ -38,7 +38,7 @@ const TICKER_GROUPS = [
     ],
   },
   {
-    group: '🌍 Нефть и газ — международные',
+    group: 'Нефть и газ — международные',
     tickers: [
       { value: 'XOM',  label: 'ExxonMobil' },
       { value: 'CVX',  label: 'Chevron' },
@@ -51,7 +51,7 @@ const TICKER_GROUPS = [
     ],
   },
   {
-    group: '📦 Сырьё и фьючерсы',
+    group: 'Сырьё и фьючерсы',
     tickers: [
       { value: 'CL=F', label: 'Нефть WTI (фьюч.)' },
       { value: 'BZ=F', label: 'Нефть Brent (фьюч.)' },
@@ -61,7 +61,7 @@ const TICKER_GROUPS = [
     ],
   },
   {
-    group: '🇺🇸 США — Технологии',
+    group: 'США — Технологии',
     tickers: [
       { value: 'AAPL',  label: 'Apple' },
       { value: 'MSFT',  label: 'Microsoft' },

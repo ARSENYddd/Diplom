@@ -1,10 +1,15 @@
 // ModelsPage.jsx — Подробная страница всех 8 моделей
 import { useState } from 'react'
+import {
+  IconTrendLine, IconVolatility, IconNeuralNet,
+  IconBolt, IconMerge, IconWave, IconTriple, IconStar,
+  IconCheck, IconCross,
+} from './Icons'
 
 const MODELS = [
   {
     id: 'arima',
-    icon: '📈',
+    icon: <IconTrendLine size={22}/>,
     name: 'ARIMA',
     full: 'AutoRegressive Integrated Moving Average',
     color: '#94a3b8',
@@ -51,7 +56,7 @@ AR-компонента описывает зависимость текущег
   },
   {
     id: 'garch',
-    icon: '📊',
+    icon: <IconVolatility size={22}/>,
     name: 'GARCH',
     full: 'Generalized AutoRegressive Conditional Heteroskedasticity',
     color: '#64748b',
@@ -98,7 +103,7 @@ GARCH(p,q) моделирует условную дисперсию σ²ₜ ка
   },
   {
     id: 'lstm',
-    icon: '🧠',
+    icon: <IconNeuralNet size={22}/>,
     name: 'LSTM',
     full: 'Long Short-Term Memory',
     color: '#60a5fa',
@@ -145,7 +150,7 @@ GARCH(p,q) моделирует условную дисперсию σ²ₜ ка
   },
   {
     id: 'arima_lstm',
-    icon: '⚡',
+    icon: <IconBolt size={22}/>,
     name: 'ARIMA + LSTM',
     full: 'Hybrid ARIMA + Long Short-Term Memory',
     color: '#818cf8',
@@ -191,7 +196,7 @@ GARCH(p,q) моделирует условную дисперсию σ²ₜ ка
   },
   {
     id: 'arima_gru',
-    icon: '🔋',
+    icon: <IconMerge size={22}/>,
     name: 'ARIMA + GRU',
     full: 'Hybrid ARIMA + Gated Recurrent Unit',
     color: '#a78bfa',
@@ -236,7 +241,7 @@ GRU имеет два вентиля (reset и update) вместо трёх в 
   },
   {
     id: 'garch_lstm',
-    icon: '🌊',
+    icon: <IconWave size={22}/>,
     name: 'GARCH + LSTM',
     full: 'Volatility-Aware GARCH + Long Short-Term Memory',
     color: '#c084fc',
@@ -281,7 +286,7 @@ GRU имеет два вентиля (reset и update) вместо трёх в 
   },
   {
     id: 'triple',
-    icon: '🔱',
+    icon: <IconTriple size={22}/>,
     name: 'Triple Hybrid',
     full: 'ARIMA + GARCH + LSTM',
     color: '#f472b6',
@@ -327,7 +332,7 @@ GRU имеет два вентиля (reset и update) вместо трёх в 
   },
   {
     id: 'ensemble',
-    icon: '★',
+    icon: <IconStar size={22}/>,
     name: 'Ensemble',
     full: 'Weighted Ensemble of All Models',
     color: '#f59e0b',
@@ -523,7 +528,7 @@ export default function ModelsPage() {
                 <ul className="space-y-2">
                   {active.strengths.map(s => (
                     <li key={s} className="flex items-start gap-2 text-[13px] text-warm">
-                      <span className="text-green-400 flex-shrink-0 mt-0.5">✓</span>{s}
+                      <IconCheck size={14} className="flex-shrink-0 mt-0.5"/>{s}
                     </li>
                   ))}
                 </ul>
@@ -533,7 +538,7 @@ export default function ModelsPage() {
                 <ul className="space-y-2">
                   {active.weaknesses.map(w => (
                     <li key={w} className="flex items-start gap-2 text-[13px] text-warm">
-                      <span className="text-red-400 flex-shrink-0 mt-0.5">✗</span>{w}
+                      <IconCross size={14} className="flex-shrink-0 mt-0.5"/>{w}
                     </li>
                   ))}
                 </ul>

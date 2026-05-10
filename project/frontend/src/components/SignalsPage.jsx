@@ -3,11 +3,12 @@ import { fetchBacktest } from '../api/client'
 import TradingMetricsCards from './TradingMetricsCards'
 import EquityChart from './EquityChart'
 import TradesTable from './TradesTable'
+import { IconLineUp, IconBarChart, IconWarning } from './Icons'
 
 // ─── Конфигурация ────────────────────────────────────────────────────────────
 const TICKER_GROUPS = [
   {
-    group: '🇺🇸 США — Индексы',
+    group: 'США — Индексы',
     tickers: [
       { value: '^GSPC',  label: 'S&P 500' },
       { value: '^DJI',   label: 'Dow Jones' },
@@ -15,7 +16,7 @@ const TICKER_GROUPS = [
     ],
   },
   {
-    group: '🇷🇺 Нефтяной сектор (MOEX)',
+    group: 'MOEX — Нефтяной сектор',
     tickers: [
       { value: 'GAZP.ME', label: 'Газпром' },
       { value: 'LKOH.ME', label: 'Лукойл' },
@@ -26,7 +27,7 @@ const TICKER_GROUPS = [
     ],
   },
   {
-    group: '🇷🇺 Другие секторы (MOEX)',
+    group: 'MOEX — Другие секторы',
     tickers: [
       { value: 'SBER.ME', label: 'Сбербанк' },
       { value: 'VTBR.ME', label: 'ВТБ' },
@@ -37,7 +38,7 @@ const TICKER_GROUPS = [
     ],
   },
   {
-    group: '🌍 Нефть и газ',
+    group: 'Нефть и газ',
     tickers: [
       { value: 'XOM',  label: 'ExxonMobil' },
       { value: 'CVX',  label: 'Chevron' },
@@ -46,7 +47,7 @@ const TICKER_GROUPS = [
     ],
   },
   {
-    group: '📦 Сырьё',
+    group: 'Сырьё и товары',
     tickers: [
       { value: 'CL=F', label: 'WTI (фьюч.)' },
       { value: 'BZ=F', label: 'Brent (фьюч.)' },
@@ -55,7 +56,7 @@ const TICKER_GROUPS = [
     ],
   },
   {
-    group: '🇺🇸 Технологии',
+    group: 'США — Технологии',
     tickers: [
       { value: 'AAPL',  label: 'Apple' },
       { value: 'MSFT',  label: 'Microsoft' },
@@ -319,11 +320,11 @@ export default function SignalsPage() {
           {/* Бейдж режима */}
           {isFuture ? (
             <span className="text-xs px-2 py-0.5 rounded bg-emerald-900/40 border border-emerald-700/60 text-emerald-300">
-              📈 прогноз в будущее
+              <IconLineUp size={12} className="inline-block mr-1"/> прогноз в будущее
             </span>
           ) : (
             <span className="text-xs px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-400">
-              📊 исторический бэктест
+              <IconBarChart size={12} className="inline-block mr-1"/> исторический бэктест
             </span>
           )}
         </div>
@@ -446,7 +447,7 @@ export default function SignalsPage() {
           {/* Предупреждение */}
           {result.warning && (
             <div className="px-4 py-3 rounded-xl bg-amber-900/20 border border-amber-700/50 text-sm text-amber-300">
-              ⚠ {result.warning}
+              <IconWarning size={13} className="inline-block mr-1.5"/> {result.warning}
             </div>
           )}
 
@@ -465,7 +466,7 @@ export default function SignalsPage() {
                   {/* Какая стратегия применена */}
                   {futureSignals?.strategy_used && futureSignals.strategy_used !== strategy && (
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-900/30 border border-amber-700/50 text-amber-400">
-                      ⚠ mean_reversion → threshold для будущего
+                      <IconWarning size={10} className="inline-block mr-0.5"/> mean_reversion → threshold для будущего
                     </span>
                   )}
                   <SignalSummary signals={futureSignals} />

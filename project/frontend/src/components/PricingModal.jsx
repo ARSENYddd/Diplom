@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { IconCheck } from './Icons'
 
 const PLANS = [
   {
@@ -63,7 +64,7 @@ function FeatureRow({ label, value }) {
       <span className="text-[13px] text-muted">{label}</span>
       {typeof value === 'boolean' ? (
         value
-          ? <span className="text-green-400 text-[16px]">✓</span>
+          ? <IconCheck size={16}/>
           : <span className="text-[var(--border)] text-[16px]">—</span>
       ) : (
         <span className="text-[13px] text-warm font-medium">{value}</span>

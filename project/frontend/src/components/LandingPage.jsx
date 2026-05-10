@@ -1,5 +1,11 @@
 // project/frontend/src/components/LandingPage.jsx
 import { useEffect, useRef, useState } from 'react'
+import {
+  IconTrendLine, IconVolatility, IconNeuralNet,
+  IconBolt, IconMerge, IconWave, IconTriple, IconStar,
+  IconLightning, IconDiamond,
+  IconCheck, IconCross, IconHeart, IconStarFilled, IconStarEmpty,
+} from './Icons'
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 const TICKERS = [
@@ -62,7 +68,7 @@ function Hero({ onOpenPricing }) {
                       px-3.5 py-1.5 rounded-full overflow-hidden
                       bg-amber-400/10 border border-amber-400/25
                       animate-fade-up [animation-delay:0ms]">
-        <span>⚡</span> ML-прогнозирование финансовых рынков
+        <IconLightning size={14} className="inline-block mr-1"/> ML-прогнозирование финансовых рынков
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent
                         animate-shimmer" />
       </div>
@@ -173,7 +179,7 @@ function HeroDashboard() {
             ARIMA · GARCH · LSTM<br />
             ARIMA+LSTM · ARIMA+GRU<br />
             GARCH+LSTM · Triple Hybrid<br />
-            <span className="text-amber-400">★ Ensemble</span>
+            <span className="text-amber-400 inline-flex items-center gap-1"><IconStar size={10}/> Ensemble</span>
           </div>
         </div>
 
@@ -293,7 +299,7 @@ function FeatureRow({ eyebrow, title, sub, bullets, panel, reverse = false }) {
         <ul className="flex flex-col gap-3.5">
           {bullets.map(b => (
             <li key={b} className="flex items-start gap-3 text-[14px] text-muted leading-[1.5]">
-              <span className="text-amber-400 text-[8px] mt-[5px] flex-shrink-0">◆</span>
+              <IconDiamond size={7} className="mt-[6px] flex-shrink-0"/>
               {b}
             </li>
           ))}
@@ -318,7 +324,7 @@ const BARS = [
   { name: 'LSTM',        mape: '1.34%', pct: 65,  warm: true  },
   { name: 'ARIMA+LSTM',  mape: '0.96%', pct: 47,  warm: true  },
   { name: 'Triple',      mape: '0.87%', pct: 42,  warm: true  },
-  { name: '★ Ensemble',  mape: '0.78%', pct: 38,  warm: true, best: true },
+  { name: 'Ensemble',    mape: '0.78%', pct: 38,  warm: true, best: true },
 ]
 
 const SIGNALS = [
@@ -326,7 +332,7 @@ const SIGNALS = [
   { action: 'SELL', ticker: 'GAZP.ME',       model: 'ARIMA+LSTM',    price: '163.45',   conf: '72%', future: false },
   { action: 'BUY',  ticker: 'GC=F (Золото)', model: 'Triple Hybrid', price: '2 341.80', conf: '91%', future: false },
   { action: 'HOLD', ticker: 'NVDA',          model: 'GARCH+LSTM',    price: '867.40',   conf: '58%', future: false },
-  { action: 'BUY',  ticker: 'BZ=F (Brent)',  model: '★ Прогноз +7d', price: '83.14',    conf: '79%', future: true  },
+  { action: 'BUY',  ticker: 'BZ=F (Brent)',  model: 'Прогноз +7d',   price: '83.14',    conf: '79%', future: true  },
 ]
 
 const SIGNAL_COLORS = {
@@ -461,14 +467,14 @@ function BacktestPanel() {
 
 // ── Models data (module scope) ────────────────────────────────────────────────
 const MODELS = [
-  { icon: '📐', name: 'ARIMA',         mape: '1.82%', desc: 'Классическая авторегрессия. Хорошо ловит линейные тренды и сезонность.',                best: false },
-  { icon: '📊', name: 'GARCH',         mape: '2.14%', desc: 'Моделирует волатильность — незаменим для оценки риска.',                               best: false },
-  { icon: '🧠', name: 'LSTM',          mape: '1.34%', desc: 'Нейросеть с долгой памятью. Улавливает нелинейные паттерны.',                          best: false },
-  { icon: '⚡', name: 'ARIMA + LSTM',  mape: '0.96%', desc: 'Линейный ARIMA убирает тренд, LSTM обрабатывает остатки.',                             best: false },
-  { icon: '🔀', name: 'ARIMA + GRU',   mape: '0.98%', desc: 'Быстрее LSTM, сопоставимая точность. GRU-блок вместо LSTM.',                          best: false },
-  { icon: '🌊', name: 'GARCH + LSTM',  mape: '1.09%', desc: 'Совместное моделирование волатильности и уровня цены.',                                best: false },
-  { icon: '🔱', name: 'Triple Hybrid', mape: '0.87%', desc: 'ARIMA + GARCH + LSTM в одной архитектуре. Топ-2 по точности.',                        best: false },
-  { icon: '★',  name: 'Ensemble',      mape: '0.78%', desc: 'Взвешенное усреднение всех моделей. Наилучшая точность.',                              best: true  },
+  { icon: <IconTrendLine size={18}/>, name: 'ARIMA',         mape: '1.82%', desc: 'Классическая авторегрессия. Хорошо ловит линейные тренды и сезонность.',                best: false },
+  { icon: <IconVolatility size={18}/>,name: 'GARCH',         mape: '2.14%', desc: 'Моделирует волатильность — незаменим для оценки риска.',                               best: false },
+  { icon: <IconNeuralNet size={18}/>, name: 'LSTM',          mape: '1.34%', desc: 'Нейросеть с долгой памятью. Улавливает нелинейные паттерны.',                          best: false },
+  { icon: <IconBolt size={18}/>,      name: 'ARIMA + LSTM',  mape: '0.96%', desc: 'Линейный ARIMA убирает тренд, LSTM обрабатывает остатки.',                             best: false },
+  { icon: <IconMerge size={18}/>,     name: 'ARIMA + GRU',   mape: '0.98%', desc: 'Быстрее LSTM, сопоставимая точность. GRU-блок вместо LSTM.',                          best: false },
+  { icon: <IconWave size={18}/>,      name: 'GARCH + LSTM',  mape: '1.09%', desc: 'Совместное моделирование волатильности и уровня цены.',                                best: false },
+  { icon: <IconTriple size={18}/>,    name: 'Triple Hybrid', mape: '0.87%', desc: 'ARIMA + GARCH + LSTM в одной архитектуре. Топ-2 по точности.',                        best: false },
+  { icon: <IconStar size={18}/>,      name: 'Ensemble',      mape: '0.78%', desc: 'Взвешенное усреднение всех моделей. Наилучшая точность.',                              best: true  },
 ]
 
 const MODEL_DETAILS = {
@@ -592,7 +598,7 @@ function ModelModal({ model, details, onClose }) {
             </div>
             <div className="flex items-center gap-3 text-[12px]">
               <span className="text-amber-400 font-semibold">MAPE {model.mape}</span>
-              <span className={`font-medium ${speedColor}`}>⚡ {details.speed}</span>
+              <span className={`font-medium ${speedColor} inline-flex items-center gap-1`}><IconLightning size={12}/> {details.speed}</span>
             </div>
           </div>
         </div>
@@ -635,7 +641,7 @@ function ModelModal({ model, details, onClose }) {
             <ul className="space-y-1.5">
               {details.pros.map(p => (
                 <li key={p} className="text-[13px] text-warm flex items-start gap-2">
-                  <span className="text-green-400 mt-0.5 flex-shrink-0">✓</span>{p}
+                  <IconCheck size={14} className="mt-0.5 flex-shrink-0"/>{p}
                 </li>
               ))}
             </ul>
@@ -646,7 +652,7 @@ function ModelModal({ model, details, onClose }) {
             <ul className="space-y-1.5">
               {details.cons.map(c => (
                 <li key={c} className="text-[13px] text-warm flex items-start gap-2">
-                  <span className="text-red-400 mt-0.5 flex-shrink-0">✗</span>{c}
+                  <IconCross size={14} className="mt-0.5 flex-shrink-0"/>{c}
                 </li>
               ))}
             </ul>
@@ -706,7 +712,7 @@ function ModelsSection() {
               <div className="text-[11px] text-muted leading-[1.6] mb-3">{m.desc}</div>
               <div className={`text-[11px] flex items-center gap-1.5
                 ${m.best ? 'text-amber-300' : 'text-amber-400'}`}>
-                <span>◆</span> MAPE {m.mape}{m.best ? ' — лучший' : ''}
+                <IconDiamond size={7}/> MAPE {m.mape}{m.best ? ' — лучший' : ''}
               </div>
               <div className="text-[10px] text-muted/60 mt-2">Подробнее →</div>
             </button>
@@ -759,8 +765,12 @@ function Testimonials() {
             <div key={t.name}
               className="bg-[var(--surface)] border border-[var(--border)] rounded-[14px] p-6
                          hover:border-amber-400/20 transition-colors">
-              <div className="text-amber-400 text-[12px] mb-3">
-                {'★'.repeat(t.stars)}{'☆'.repeat(5 - t.stars)}
+              <div className="flex items-center gap-0.5 mb-3">
+                {Array.from({ length: 5 }, (_, i) =>
+                  i < t.stars
+                    ? <IconStarFilled key={i} size={13}/>
+                    : <IconStarEmpty  key={i} size={13}/>
+                )}
               </div>
               <p className="text-[13px] text-muted leading-[1.7] mb-4">{t.text}</p>
               <div className="flex items-center gap-2.5">
@@ -802,7 +812,7 @@ function CTABlock({ onOpenPricing }) {
       <div className="flex items-center justify-center gap-6 mb-10 flex-wrap">
         {['8 ML-моделей', '40+ инструментов', 'Торговые сигналы', 'Бэктест с Sharpe', 'Бесплатно'].map(f => (
           <span key={f} className="flex items-center gap-1.5 text-[13px] text-muted">
-            <span className="text-amber-400 font-bold">✓</span> {f}
+            <IconCheck size={13}/> {f}
           </span>
         ))}
       </div>
@@ -865,7 +875,7 @@ function Footer() {
         <div className="border-t border-[var(--border)] pt-6 flex items-center justify-between
                         text-[12px] text-[var(--dim)]">
           <span>© 2025 AlphaSignal. Дипломная работа МТУСИ.</span>
-          <span>Сделано с ♥ и TensorFlow</span>
+          <span className="inline-flex items-center gap-1">Сделано с <IconHeart size={12}/> и TensorFlow</span>
         </div>
       </div>
     </footer>

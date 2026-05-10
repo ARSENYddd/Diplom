@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react'
+import { IconTarget, IconBarChart, IconSignal, IconTimeSeries, IconML, IconPnL, IconSearch } from './Icons'
 
 const SECTIONS = [
   {
     id: 'accuracy',
-    icon: '🎯',
+    icon: <IconTarget size={18}/>,
     title: 'Метрики точности',
     terms: [
       {
@@ -50,7 +51,7 @@ const SECTIONS = [
   },
   {
     id: 'trading',
-    icon: '📊',
+    icon: <IconBarChart size={18}/>,
     title: 'Торговые метрики',
     terms: [
       {
@@ -127,7 +128,7 @@ const SECTIONS = [
   },
   {
     id: 'signals',
-    icon: '📡',
+    icon: <IconSignal size={18}/>,
     title: 'Торговые сигналы',
     terms: [
       {
@@ -204,7 +205,7 @@ const SECTIONS = [
   },
   {
     id: 'timeseries',
-    icon: '📉',
+    icon: <IconTimeSeries size={18}/>,
     title: 'Временные ряды',
     terms: [
       {
@@ -281,7 +282,7 @@ const SECTIONS = [
   },
   {
     id: 'ml',
-    icon: '🤖',
+    icon: <IconML size={18}/>,
     title: 'ML и нейросети',
     terms: [
       {
@@ -348,7 +349,7 @@ const SECTIONS = [
   },
   {
     id: 'finance',
-    icon: '💹',
+    icon: <IconPnL size={18}/>,
     title: 'Финансовые термины',
     terms: [
       {
@@ -565,7 +566,7 @@ export default function WikiPage() {
 
           {filtered.length === 0 && (
             <div className="text-center py-20 text-muted">
-              <p className="text-4xl mb-4">🔍</p>
+              <p className="flex justify-center mb-4"><IconSearch size={48}/></p>
               <p className="text-[16px]">Ничего не найдено по запросу «{query}»</p>
               <button onClick={() => setQuery('')}
                 className="mt-4 text-amber-400 text-[13px] hover:underline">

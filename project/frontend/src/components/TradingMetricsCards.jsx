@@ -1,10 +1,16 @@
+import { IconWarning } from './Icons'
+
 function MetricCard({ label, value, sub, color = 'text-white', warn }) {
   return (
     <div className="bg-slate-800/60 border border-slate-700/80 rounded-lg px-3 py-2 min-w-[100px]">
       <p className="text-[10px] text-slate-500 uppercase tracking-wide mb-1">{label}</p>
       <p className={`text-base font-mono font-semibold ${color}`}>{value}</p>
       {sub  && <p className="text-[10px] text-slate-500 mt-0.5">{sub}</p>}
-      {warn && <p className="text-[10px] text-amber-500 mt-0.5">⚠ {warn}</p>}
+      {warn && (
+        <p className="text-[10px] text-amber-500 mt-0.5 flex items-center gap-1">
+          <IconWarning size={11}/> {warn}
+        </p>
+      )}
     </div>
   )
 }
