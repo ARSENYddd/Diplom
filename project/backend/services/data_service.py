@@ -170,19 +170,24 @@ def _load_moex_candles_ohlcv(ticker_me: str, start: str, end: str, interval: str
             r[col_idx["high"]],
             r[col_idx["low"]],
             r[col_idx["close"]],
-            r[col_idx.get("volume", -1)] or 0,
+            r[col_idx["volume"]] if "volume" in col_idx else 0,
         ))
 
     df = pd.DataFrame(records, columns=["Date", "Open", "High", "Low", "Close", "Volume"])
     df["Date"] = pd.to_datetime(df["Date"])
     df = df.set_index("Date").sort_index().dropna(subset=["Close"])
+    # Localize MOEX candle timestamps (always Moscow time = UTC+3) to UTC
+    # so idx.timestamp() in get_ohlcv_series returns unambiguous UTC values.
+    try:
+        df.index = df.index.tz_localize("Europe/Moscow").tz_convert("UTC")
+    except Exception:
+        pass  # already tz-aware or no data
 
-    if interval == "6h":
-        df = df.resample("6h").agg(
-            {"Open": "first", "High": "max", "Low": "min", "Close": "last", "Volume": "sum"}
-        ).dropna(subset=["Close"])
-    elif interval == "12h":
-        df = df.resample("12h").agg(
+    if df.empty:
+        raise ValueError(f"MOEX Candles OHLCV вернул пустые данные для {symbol}.")
+
+    if interval in ("6h", "12h"):
+        df = df.resample(interval).agg(
             {"Open": "first", "High": "max", "Low": "min", "Close": "last", "Volume": "sum"}
         ).dropna(subset=["Close"])
 
@@ -248,8 +253,12 @@ def _load_moex_ohlcv(ticker_me: str, start: str, end: str) -> pd.DataFrame:
         h = r[high_col]  if high_col  >= 0 else r[close_col]
         l = r[low_col]   if low_col   >= 0 else r[close_col]
         v = r[vol_col]   if vol_col   >= 0 else 0
-        records.append((r[date_col], o or r[close_col], h or r[close_col],
-                        l or r[close_col], r[close_col], v or 0))
+        records.append((r[date_col],
+                        o if o is not None else r[close_col],
+                        h if h is not None else r[close_col],
+                        l if l is not None else r[close_col],
+                        r[close_col],
+                        v if v is not None else 0))
 
     df = pd.DataFrame(records, columns=["Date", "Open", "High", "Low", "Close", "Volume"])
     df["Date"] = pd.to_datetime(df["Date"])
