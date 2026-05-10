@@ -113,6 +113,151 @@ def _load_moex_candles(ticker_me: str, start: str, end: str, interval: str) -> p
     return df
 
 
+def _load_moex_candles_ohlcv(ticker_me: str, start: str, end: str, interval: str) -> pd.DataFrame:
+    """
+    Fetch full OHLCV candles from MOEX ISS Candles API.
+    Returns DataFrame with columns Open, High, Low, Close, Volume indexed by datetime.
+    """
+    symbol   = ticker_me.upper().replace(".ME", "")
+    moex_iv  = _MOEX_CANDLE_INTERVAL[interval]
+    url      = _MOEX_CANDLES_URL.format(symbol=symbol)
+    _timeout = httpx.Timeout(60.0, connect=15.0)
+
+    all_rows: list = []
+    offset = 0
+
+    with httpx.Client(timeout=_timeout, verify=True) as client:
+        while True:
+            params = {
+                "from":     start,
+                "till":     end,
+                "interval": moex_iv,
+                "start":    offset,
+                "iss.meta": "off",
+                "iss.only": "candles",
+            }
+            resp = client.get(url, params=params)
+            resp.raise_for_status()
+            js = resp.json()
+
+            candles = js.get("candles", {})
+            columns = candles.get("columns", [])
+            rows    = candles.get("data",    [])
+
+            if not rows:
+                break
+
+            all_rows.extend(rows)
+
+            if len(rows) < _MOEX_CANDLES_PAGE:
+                break
+            offset += len(rows)
+
+    if not all_rows:
+        raise ValueError(
+            f"Нет OHLCV данных MOEX Candles для {symbol} (interval={moex_iv}) "
+            f"за период {start}–{end}."
+        )
+
+    col_idx = {c: i for i, c in enumerate(columns)}
+    records = []
+    for r in all_rows:
+        if r[col_idx["close"]] is None:
+            continue
+        records.append((
+            r[col_idx["begin"]],
+            r[col_idx["open"]],
+            r[col_idx["high"]],
+            r[col_idx["low"]],
+            r[col_idx["close"]],
+            r[col_idx.get("volume", -1)] or 0,
+        ))
+
+    df = pd.DataFrame(records, columns=["Date", "Open", "High", "Low", "Close", "Volume"])
+    df["Date"] = pd.to_datetime(df["Date"])
+    df = df.set_index("Date").sort_index().dropna(subset=["Close"])
+
+    if interval == "6h":
+        df = df.resample("6h").agg(
+            {"Open": "first", "High": "max", "Low": "min", "Close": "last", "Volume": "sum"}
+        ).dropna(subset=["Close"])
+    elif interval == "12h":
+        df = df.resample("12h").agg(
+            {"Open": "first", "High": "max", "Low": "min", "Close": "last", "Volume": "sum"}
+        ).dropna(subset=["Close"])
+
+    return df
+
+
+def _load_moex_ohlcv(ticker_me: str, start: str, end: str) -> pd.DataFrame:
+    """
+    Fetch daily OHLCV from MOEX ISS History API.
+    Returns DataFrame with columns Open, High, Low, Close, Volume indexed by date.
+    """
+    symbol = ticker_me.upper().replace(".ME", "")
+    url    = _MOEX_HISTORY_URL.format(symbol=symbol)
+
+    all_rows: list = []
+    offset = 0
+    _timeout = httpx.Timeout(60.0, connect=15.0)
+
+    with httpx.Client(timeout=_timeout, verify=True) as client:
+        while True:
+            params = {
+                "from":     start,
+                "till":     end,
+                "start":    offset,
+                "iss.meta": "off",
+                "iss.only": "history",
+            }
+            resp = client.get(url, params=params)
+            resp.raise_for_status()
+            js = resp.json()
+
+            history = js.get("history", {})
+            columns = history.get("columns", [])
+            rows    = history.get("data",    [])
+
+            if not rows:
+                break
+
+            all_rows.extend(rows)
+
+            if len(rows) < _MOEX_PAGE_SIZE:
+                break
+            offset += len(rows)
+
+    if not all_rows:
+        raise ValueError(
+            f"Нет OHLCV данных MOEX History для тикера {symbol} за период {start}–{end}."
+        )
+
+    col_idx   = {c: i for i, c in enumerate(columns)}
+    date_col  = col_idx["TRADEDATE"]
+    open_col  = col_idx.get("OPEN",   -1)
+    high_col  = col_idx.get("HIGH",   -1)
+    low_col   = col_idx.get("LOW",    -1)
+    close_col = col_idx["CLOSE"]
+    vol_col   = col_idx.get("VOLUME", -1)
+
+    records = []
+    for r in all_rows:
+        if r[close_col] is None:
+            continue
+        o = r[open_col]  if open_col  >= 0 else r[close_col]
+        h = r[high_col]  if high_col  >= 0 else r[close_col]
+        l = r[low_col]   if low_col   >= 0 else r[close_col]
+        v = r[vol_col]   if vol_col   >= 0 else 0
+        records.append((r[date_col], o or r[close_col], h or r[close_col],
+                        l or r[close_col], r[close_col], v or 0))
+
+    df = pd.DataFrame(records, columns=["Date", "Open", "High", "Low", "Close", "Volume"])
+    df["Date"] = pd.to_datetime(df["Date"])
+    df = df.set_index("Date").sort_index().dropna(subset=["Close"])
+
+    return df
+
+
 def _load_moex(ticker_me: str, start: str, end: str) -> pd.DataFrame:
     """
     Fetch daily close prices from the Moscow Exchange (MOEX ISS API).
@@ -307,3 +452,93 @@ def train_test_split_series(df: pd.DataFrame, test_ratio: float = 0.2):
     n     = len(df)
     split = int(n * (1 - test_ratio))
     return df.iloc[:split], df.iloc[split:]
+
+
+def load_ohlcv(ticker: str, start: str, end: str, interval: str = "1d") -> pd.DataFrame:
+    """
+    Load OHLCV DataFrame (Open, High, Low, Close, Volume).
+    Uses a separate cache key (_ohlcv suffix) so it never collides with load_data().
+    """
+    interval = interval or "1d"
+    key      = _cache_key(ticker, start, end, interval) + "_ohlcv"
+
+    if key in _memory_cache:
+        return _memory_cache[key]
+
+    disk_path = _disk_cache_path(key)
+    if os.path.exists(disk_path):
+        with open(disk_path, "rb") as f:
+            df = pickle.load(f)
+        _memory_cache[key] = df
+        return df
+
+    if _is_moex_ticker(ticker):
+        if interval in _INTRADAY_INTERVALS or interval in ("1wk", "1mo"):
+            df = _load_moex_candles_ohlcv(ticker, start, end, interval)
+        else:
+            try:
+                df = _load_moex_ohlcv(ticker, start, end)
+            except Exception as moex_err:
+                import logging
+                logging.warning(
+                    f"MOEX ISS OHLCV недоступен для {ticker} ({moex_err}), "
+                    "переключаюсь на yfinance..."
+                )
+                df = yf.download(ticker, start=start, end=end, progress=False, auto_adjust=True)
+                if df.empty:
+                    raise ValueError(f"Нет OHLCV данных для {ticker}.") from moex_err
+                if isinstance(df.columns, pd.MultiIndex):
+                    df.columns = df.columns.droplevel(1)
+                df = df[["Open", "High", "Low", "Close", "Volume"]].copy()
+                df.index = pd.to_datetime(df.index)
+                df = df.dropna(subset=["Close"])
+    else:
+        yf_interval = _YF_INTERVAL_MAP.get(interval, "1d")
+        df = yf.download(
+            ticker, start=start, end=end,
+            interval=yf_interval,
+            progress=False, auto_adjust=True,
+        )
+        if df.empty:
+            raise ValueError(f"Нет OHLCV данных для тикера {ticker} за период {start}–{end}.")
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.droplevel(1)
+        df = df[["Open", "High", "Low", "Close", "Volume"]].copy()
+        df.index = pd.to_datetime(df.index)
+        df = df.dropna(subset=["Close"])
+
+        if interval in _RESAMPLE_MAP:
+            df = df.resample(_RESAMPLE_MAP[interval]).agg({
+                "Open":   "first",
+                "High":   "max",
+                "Low":    "min",
+                "Close":  "last",
+                "Volume": "sum",
+            }).dropna(subset=["Close"])
+
+    with open(disk_path, "wb") as f:
+        pickle.dump(df, f)
+    _memory_cache[key] = df
+    return df
+
+
+def get_ohlcv_series(ticker: str, start: str, end: str, interval: str = "1d") -> list:
+    """
+    Return list of OHLCV dicts suitable for lightweight-charts.
+    - Daily/weekly/monthly: time = "YYYY-MM-DD" string
+    - Intraday (1h/6h/12h):  time = Unix timestamp (integer seconds)
+    """
+    df = load_ohlcv(ticker, start, end, interval)
+    is_intraday = interval in _INTRADAY_INTERVALS
+    result = []
+    for idx, row in df.iterrows():
+        time_val = int(idx.timestamp()) if is_intraday else idx.strftime("%Y-%m-%d")
+        result.append({
+            "time":   time_val,
+            "open":   round(float(row["Open"]),   4),
+            "high":   round(float(row["High"]),   4),
+            "low":    round(float(row["Low"]),    4),
+            "close":  round(float(row["Close"]),  4),
+            "volume": int(row["Volume"]) if not pd.isna(row["Volume"]) else 0,
+        })
+    return result
