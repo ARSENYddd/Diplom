@@ -13,3 +13,6 @@ export const fetchComparison = (ticker, start, end) =>
 
 export const fetchBacktest = (body) =>
   api.post('/backtest', body).then(r => r.data)
+
+export const fetchOHLCV = (ticker, start, end, interval = '1d') =>
+  api.get('/ohlcv', { params: { ticker, start, end, interval } }).then(r => r.data)
