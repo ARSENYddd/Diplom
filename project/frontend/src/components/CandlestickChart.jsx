@@ -51,13 +51,15 @@ export default function CandlestickChart({ ticker, start, end, interval = '1d' }
   // ── Fetch OHLCV whenever params change ─────────────────────────────────
   useEffect(() => {
     if (!ticker || !start || !end) return
+    let cancelled = false
     setLoading(true)
     setError(null)
     setOhlcv(null)
     fetchOHLCV(ticker, start, end, interval)
-      .then(data => setOhlcv(data.ohlcv))
-      .catch(e => setError(e.response?.data?.detail ?? e.message ?? 'Ошибка загрузки данных'))
-      .finally(() => setLoading(false))
+      .then(data  => { if (!cancelled) setOhlcv(data.ohlcv) })
+      .catch(e    => { if (!cancelled) setError(e.response?.data?.detail ?? e.message ?? 'Ошибка загрузки данных') })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
   }, [ticker, start, end, interval])
 
   // ── Build / rebuild charts whenever ohlcv data or indicators change ────
@@ -196,6 +198,7 @@ export default function CandlestickChart({ ticker, start, end, interval = '1d' }
       }
     })
     ro.observe(mainRef.current)
+    if (rsiRef.current) ro.observe(rsiRef.current)
 
     return () => {
       ro.disconnect()
