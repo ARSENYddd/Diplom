@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import ForecastChart from './ForecastChart'
+import CandlestickChart from './CandlestickChart'
 import { fetchForecast, fetchBacktest } from '../api/client'
 import { IconLineUp } from './Icons'
 
@@ -358,6 +359,7 @@ export default function ChartPanel({ panelId, onRemove, defaultParams = {} }) {
           {[
             { key: 'simple',   label: 'Сводка' },
             { key: 'advanced', label: 'График' },
+            { key: 'candles',  label: 'Свечи' },
           ].map(({ key, label }) => (
             <button key={key} onClick={() => setViewMode(key)}
               className={`text-[11px] font-medium px-2.5 py-1 rounded-md transition-all
@@ -433,6 +435,13 @@ export default function ChartPanel({ panelId, onRemove, defaultParams = {} }) {
             data={data}
             tickerLabel={tickerLabel}
             modelLabel={MODELS.find(m => m.value === model)?.label ?? model}
+          />
+        ) : viewMode === 'candles' ? (
+          <CandlestickChart
+            ticker={ticker}
+            start={start}
+            end={end}
+            interval={interval}
           />
         ) : (
           <div className="p-2">
