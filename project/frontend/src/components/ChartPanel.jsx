@@ -67,20 +67,36 @@ const TICKER_GROUPS = [
 ]
 
 const MODELS = [
-  { value: 'arima',         label: 'ARIMA' },
-  { value: 'garch',         label: 'GARCH' },
-  { value: 'lstm',          label: 'LSTM' },
-  { value: 'arima_lstm',    label: 'ARIMA+LSTM' },
-  { value: 'arima_gru',     label: 'ARIMA+GRU' },
-  { value: 'garch_lstm',    label: 'GARCH+LSTM' },
-  { value: 'triple_hybrid', label: 'ARIMA+GARCH+LSTM' },
-  { value: 'ensemble',      label: 'Ансамбль' },
+  { value: 'arima',         label: 'ARIMA',             group: 'Классические' },
+  { value: 'sarima',        label: 'SARIMA',            group: 'Классические' },
+  { value: 'garch',         label: 'GARCH',             group: 'Классические' },
+  { value: 'prophet',       label: 'Prophet',           group: 'Классические' },
+  { value: 'xgboost',       label: 'XGBoost',           group: 'ML' },
+  { value: 'lstm',          label: 'LSTM',              group: 'Нейросети' },
+  { value: 'tcn',           label: 'TCN',               group: 'Нейросети' },
+  { value: 'nbeats',        label: 'N-BEATS',           group: 'Нейросети' },
+  { value: 'transformer',   label: 'Transformer',       group: 'Нейросети' },
+  { value: 'tft',           label: 'TFT',               group: 'Нейросети' },
+  { value: 'patchtst',      label: 'PatchTST',          group: 'Нейросети' },
+  { value: 'arima_lstm',    label: 'ARIMA+LSTM',        group: 'Гибридные' },
+  { value: 'arima_gru',     label: 'ARIMA+GRU',         group: 'Гибридные' },
+  { value: 'garch_lstm',    label: 'GARCH+LSTM',        group: 'Гибридные' },
+  { value: 'triple_hybrid', label: 'ARIMA+GARCH+LSTM',  group: 'Гибридные' },
+  { value: 'ensemble',      label: 'Ансамбль',          group: 'Гибридные' },
 ]
 
 const MODEL_COLORS = {
   arima:         '#94a3b8',
+  sarima:        '#cbd5e1',
   garch:         '#64748b',
+  prophet:       '#fb923c',
+  xgboost:       '#facc15',
   lstm:          '#60a5fa',
+  tcn:           '#38bdf8',
+  nbeats:        '#22d3ee',
+  transformer:   '#2dd4bf',
+  tft:           '#34d399',
+  patchtst:      '#86efac',
   arima_lstm:    '#818cf8',
   arima_gru:     '#a78bfa',
   garch_lstm:    '#c084fc',
@@ -324,8 +340,12 @@ export default function ChartPanel({ panelId, onRemove, defaultParams = {} }) {
 
         {/* Model */}
         <select value={model} onChange={e => setModel(e.target.value)} className={sel} title="Модель">
-          {MODELS.map(m => (
-            <option key={m.value} value={m.value}>{m.label}</option>
+          {['Классические', 'ML', 'Нейросети', 'Гибридные'].map(g => (
+            <optgroup key={g} label={g}>
+              {MODELS.filter(m => m.group === g).map(m => (
+                <option key={m.value} value={m.value}>{m.label}</option>
+              ))}
+            </optgroup>
           ))}
         </select>
 

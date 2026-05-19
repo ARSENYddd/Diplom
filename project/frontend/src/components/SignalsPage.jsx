@@ -69,14 +69,22 @@ const TICKER_GROUPS = [
 ]
 
 const MODELS = [
-  { value: 'arima',         label: 'ARIMA' },
-  { value: 'garch',         label: 'GARCH' },
-  { value: 'lstm',          label: 'LSTM' },
-  { value: 'arima_lstm',    label: 'ARIMA+LSTM' },
-  { value: 'arima_gru',     label: 'ARIMA+GRU' },
-  { value: 'garch_lstm',    label: 'GARCH+LSTM' },
-  { value: 'triple_hybrid', label: 'ARIMA+GARCH+LSTM' },
-  { value: 'ensemble',      label: 'Ансамбль' },
+  { value: 'arima',         label: 'ARIMA',            group: 'Классические' },
+  { value: 'sarima',        label: 'SARIMA',           group: 'Классические' },
+  { value: 'garch',         label: 'GARCH',            group: 'Классические' },
+  { value: 'prophet',       label: 'Prophet',          group: 'Классические' },
+  { value: 'xgboost',       label: 'XGBoost',          group: 'ML' },
+  { value: 'lstm',          label: 'LSTM',             group: 'Нейросети' },
+  { value: 'tcn',           label: 'TCN',              group: 'Нейросети' },
+  { value: 'nbeats',        label: 'N-BEATS',          group: 'Нейросети' },
+  { value: 'transformer',   label: 'Transformer',      group: 'Нейросети' },
+  { value: 'tft',           label: 'TFT',              group: 'Нейросети' },
+  { value: 'patchtst',      label: 'PatchTST',         group: 'Нейросети' },
+  { value: 'arima_lstm',    label: 'ARIMA+LSTM',       group: 'Гибридные' },
+  { value: 'arima_gru',     label: 'ARIMA+GRU',        group: 'Гибридные' },
+  { value: 'garch_lstm',    label: 'GARCH+LSTM',       group: 'Гибридные' },
+  { value: 'triple_hybrid', label: 'ARIMA+GARCH+LSTM', group: 'Гибридные' },
+  { value: 'ensemble',      label: 'Ансамбль',         group: 'Гибридные' },
 ]
 
 const STRATEGIES = [
@@ -348,7 +356,13 @@ export default function SignalsPage() {
           <div className="flex flex-col gap-1">
             <label className="text-[10px] text-slate-500 uppercase tracking-wide">Модель</label>
             <select value={model} onChange={e => setModel(e.target.value)} className={sel}>
-              {MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+              {['Классические', 'ML', 'Нейросети', 'Гибридные'].map(g => (
+                <optgroup key={g} label={g}>
+                  {MODELS.filter(m => m.group === g).map(m => (
+                    <option key={m.value} value={m.value}>{m.label}</option>
+                  ))}
+                </optgroup>
+              ))}
             </select>
           </div>
 

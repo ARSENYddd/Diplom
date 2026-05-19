@@ -90,11 +90,11 @@ export const IconMerge = ({ size = 16, className = '' }) => (
 export const IconWave = ({ size = 16, className = '' }) => (
   <Svg size={size} className={className}>
     <path d="M1 10 C3 6 5 6 7 9 S11 13 14 9 L15 8"
-      stroke="#60a5fa" strokeWidth="1.8" strokeLinecap="round" fill="none"/>
+      stroke="#f59e0b" strokeWidth="1.8" strokeLinecap="round" fill="none"/>
     <path d="M1 7 C3 3 5 3 7 6 S11 10 14 6 L15 5"
-      stroke="#60a5fa" strokeWidth="1.1" strokeLinecap="round" fill="none" strokeOpacity="0.45"/>
+      stroke="#f59e0b" strokeWidth="1.1" strokeLinecap="round" fill="none" strokeOpacity="0.45"/>
     <path d="M1 13 C3 10 5 10 7 12 S11 15 14 12"
-      stroke="#60a5fa" strokeWidth="0.7" strokeLinecap="round" fill="none" strokeOpacity="0.25"/>
+      stroke="#f59e0b" strokeWidth="0.7" strokeLinecap="round" fill="none" strokeOpacity="0.25"/>
   </Svg>
 )
 
@@ -336,12 +336,12 @@ export const IconPnL = ({ size = 16, className = '' }) => (
   <Svg size={size} className={className}>
     {/* equity curve going up */}
     <path d="M1.5 13 L4 10 L6 11.5 L9 7 L11 9 L14.5 4"
-      stroke="#4ade80" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+      stroke="#f59e0b" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
     {/* area fill */}
     <path d="M1.5 13 L4 10 L6 11.5 L9 7 L11 9 L14.5 4 L14.5 14 L1.5 14 Z"
-      fill="#4ade80" fillOpacity="0.1"/>
+      fill="#f59e0b" fillOpacity="0.1"/>
     {/* axis */}
-    <line x1="1.5" y1="14" x2="14.5" y2="14" stroke="#4ade80" strokeWidth="0.7" strokeOpacity="0.3"/>
+    <line x1="1.5" y1="14" x2="14.5" y2="14" stroke="#f59e0b" strokeWidth="0.7" strokeOpacity="0.3"/>
   </Svg>
 )
 

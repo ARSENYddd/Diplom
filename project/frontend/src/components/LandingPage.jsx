@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import {
   IconTrendLine, IconVolatility, IconNeuralNet,
   IconBolt, IconMerge, IconWave, IconTriple, IconStar,
+  IconBarChart, IconTarget,
   IconLightning, IconDiamond,
   IconCheck, IconCross, IconHeart, IconStarFilled, IconStarEmpty,
 } from './Icons'
@@ -86,7 +87,7 @@ function Hero({ onOpenPricing }) {
       {/* Sub */}
       <p className="text-[18px] text-muted max-w-[560px] leading-[1.6] mb-10
                     animate-fade-up [animation-delay:200ms]">
-        8 моделей — ARIMA, GARCH, LSTM и гибриды — дают прогноз, торговые сигналы
+        16 моделей — ARIMA, LSTM, Transformer, PatchTST и гибриды — дают прогноз, торговые сигналы
         и бэктест для любого актива: S&P 500, MOEX, нефть, золото.
       </p>
 
@@ -176,9 +177,10 @@ function HeroDashboard() {
             Модели
           </div>
           <div className="text-[10px] text-muted px-2 leading-[2]">
-            ARIMA · GARCH · LSTM<br />
-            ARIMA+LSTM · ARIMA+GRU<br />
-            GARCH+LSTM · Triple Hybrid<br />
+            ARIMA · SARIMA · GARCH<br />
+            Prophet · XGBoost · LSTM<br />
+            TCN · N-BEATS · Transformer<br />
+            TFT · PatchTST · Гибриды<br />
             <span className="text-amber-400 inline-flex items-center gap-1"><IconStar size={10}/> Ensemble</span>
           </div>
         </div>
@@ -259,7 +261,7 @@ function StatsBar() {
     <div ref={ref} className="reveal flex items-center justify-center
                               bg-[var(--surface)] border-y border-[var(--border)] py-10">
       {[
-        { val: '8',     lbl: 'ML-моделей' },
+        { val: '16',    lbl: 'ML-моделей' },
         { val: '0.78%', lbl: 'MAPE — лучший результат' },
         { val: '+34%',  lbl: 'Доходность бэктеста' },
         { val: '40+',   lbl: 'Торговых инструментов' },
@@ -467,14 +469,22 @@ function BacktestPanel() {
 
 // ── Models data (module scope) ────────────────────────────────────────────────
 const MODELS = [
-  { icon: <IconTrendLine size={18}/>, name: 'ARIMA',         mape: '1.82%', desc: 'Классическая авторегрессия. Хорошо ловит линейные тренды и сезонность.',                best: false },
-  { icon: <IconVolatility size={18}/>,name: 'GARCH',         mape: '2.14%', desc: 'Моделирует волатильность — незаменим для оценки риска.',                               best: false },
-  { icon: <IconNeuralNet size={18}/>, name: 'LSTM',          mape: '1.34%', desc: 'Нейросеть с долгой памятью. Улавливает нелинейные паттерны.',                          best: false },
-  { icon: <IconBolt size={18}/>,      name: 'ARIMA + LSTM',  mape: '0.96%', desc: 'Линейный ARIMA убирает тренд, LSTM обрабатывает остатки.',                             best: false },
-  { icon: <IconMerge size={18}/>,     name: 'ARIMA + GRU',   mape: '0.98%', desc: 'Быстрее LSTM, сопоставимая точность. GRU-блок вместо LSTM.',                          best: false },
-  { icon: <IconWave size={18}/>,      name: 'GARCH + LSTM',  mape: '1.09%', desc: 'Совместное моделирование волатильности и уровня цены.',                                best: false },
-  { icon: <IconTriple size={18}/>,    name: 'Triple Hybrid', mape: '0.87%', desc: 'ARIMA + GARCH + LSTM в одной архитектуре. Топ-2 по точности.',                        best: false },
-  { icon: <IconStar size={18}/>,      name: 'Ensemble',      mape: '0.78%', desc: 'Взвешенное усреднение всех моделей. Наилучшая точность.',                              best: true  },
+  { icon: <IconTrendLine size={18}/>, name: 'ARIMA',         mape: '1.82%', desc: 'Классическая авторегрессия. Хорошо ловит линейные тренды и сезонность.',       best: false },
+  { icon: <IconTrendLine size={18}/>, name: 'SARIMA',        mape: '1.68%', desc: 'ARIMA с сезонностью. Улавливает недельные и годовые рыночные паттерны.',        best: false },
+  { icon: <IconVolatility size={18}/>,name: 'GARCH',         mape: '2.14%', desc: 'Моделирует волатильность — незаменим для оценки риска.',                        best: false },
+  { icon: <IconWave size={18}/>,      name: 'Prophet',       mape: '1.93%', desc: 'Модель Meta. Автоматически выделяет тренд, сезонность и праздники.',            best: false },
+  { icon: <IconBarChart size={18}/>,  name: 'XGBoost',       mape: '1.16%', desc: 'Градиентный бустинг деревьев. Быстрый, интерпретируемый, не требует нормализации.', best: false },
+  { icon: <IconNeuralNet size={18}/>, name: 'LSTM',          mape: '1.34%', desc: 'Нейросеть с долгой памятью. Улавливает нелинейные паттерны.',                   best: false },
+  { icon: <IconNeuralNet size={18}/>, name: 'TCN',           mape: '1.05%', desc: 'Дилатированные свёртки. Параллельнее LSTM, охватывает длинный контекст.',       best: false },
+  { icon: <IconTriple size={18}/>,    name: 'N-BEATS',       mape: '0.99%', desc: 'MLP-блоки с backcast/forecast разложением. Победитель M4 Competition.',         best: false },
+  { icon: <IconStar size={18}/>,      name: 'Transformer',   mape: '0.92%', desc: 'Механизм самовнимания — глобальный контекст всей последовательности.',          best: false },
+  { icon: <IconMerge size={18}/>,     name: 'TFT',           mape: '0.81%', desc: 'Google 2021: LSTM + внимание + GLU-ворота. Интерпретируемый и точный.',         best: false },
+  { icon: <IconTarget size={18}/>,    name: 'PatchTST',      mape: '0.76%', desc: 'Патч-токенизация 2023. Лучший MAPE среди всех одиночных моделей.',              best: false },
+  { icon: <IconBolt size={18}/>,      name: 'ARIMA + LSTM',  mape: '0.96%', desc: 'Линейный ARIMA убирает тренд, LSTM обрабатывает остатки.',                      best: false },
+  { icon: <IconMerge size={18}/>,     name: 'ARIMA + GRU',   mape: '0.98%', desc: 'Быстрее LSTM, сопоставимая точность. GRU-блок вместо LSTM.',                   best: false },
+  { icon: <IconWave size={18}/>,      name: 'GARCH + LSTM',  mape: '1.09%', desc: 'Совместное моделирование волатильности и уровня цены.',                         best: false },
+  { icon: <IconTriple size={18}/>,    name: 'Triple Hybrid', mape: '0.87%', desc: 'ARIMA + GARCH + LSTM в одной архитектуре. Топ-2 по точности.',                  best: false },
+  { icon: <IconStar size={18}/>,      name: 'Ensemble',      mape: '0.78%', desc: 'Взвешенное усреднение всех 15 моделей. Наилучшая точность.',                    best: true  },
 ]
 
 const MODEL_DETAILS = {
@@ -549,14 +559,94 @@ const MODEL_DETAILS = {
     notFor: 'Быстрый прогноз в реальном времени. Малые данные (менее 2 лет).',
   },
   'Ensemble': {
-    full: 'Взвешенное усреднение предсказаний всех 7 моделей. Веса подбираются по валидационной ошибке: точные модели получают больший вес.',
+    full: 'Взвешенное усреднение предсказаний всех 15 моделей. Веса подбираются по валидационной ошибке: точные модели получают больший вес.',
     when: 'Когда важна максимальная точность. Финальный прогноз перед принятием решения.',
     tags: ['Максимальная точность', 'Любые активы', 'Финальный прогноз'],
     assets: ['Все инструменты', 'S&P 500', 'Сбербанк', 'Brent'],
     speed: 'Медленно',
     pros: ['Лучший MAPE 0.78% — #1 среди всех', 'Усредняет ошибки отдельных моделей', 'Работает на любых активах'],
-    cons: ['Самый медленный (запускает все 7 моделей)', 'Сложнее объяснить прогноз', 'Тяжелее по ресурсам'],
+    cons: ['Самый медленный (запускает все 15 моделей)', 'Сложнее объяснить прогноз', 'Тяжелее по ресурсам'],
     notFor: 'Интерактивный анализ в реальном времени. Используй когда важна точность, а не скорость.',
+  },
+  'SARIMA': {
+    full: 'Seasonal ARIMA — расширение ARIMA с явным моделированием сезонности. Добавляет сезонные лаги с периодом m (5 для дневных данных, 52 для недельных). Параметры подбираются автоматически.',
+    when: 'Активы с выраженной сезонностью: товарные фьючерсы, газ, акции с квартальными циклами.',
+    tags: ['Сезонность', 'Статистика', 'Газ и сырьё'],
+    assets: ['Газ (NG=F)', 'Brent', 'Новатэк', 'Газпром'],
+    speed: 'Быстро',
+    pros: ['Явно моделирует сезонность', 'Автоматический подбор параметров', 'Быстрый расчёт'],
+    cons: ['На данных без сезонности не лучше ARIMA', 'Только линейные зависимости'],
+    notFor: 'Акции без сезонных паттернов и высокочастотные данные без регулярных циклов.',
+  },
+  'Prophet': {
+    full: 'Аддитивная модель Meta (2017). Разбивает ряд на тренд + сезонность + праздники. Changepoint detection автоматически находит точки смены тренда. Устойчив к пропускам данных.',
+    when: 'Длинные ряды с выраженной годовой или недельной сезонностью. ETF, фондовые индексы.',
+    tags: ['Meta', 'Сезонность', 'Тренд'],
+    assets: ['Brent', 'Золото (GC=F)', 'S&P 500', 'Магнит'],
+    speed: 'Быстро',
+    pros: ['Интерпретируемые компоненты', 'Устойчив к пропускам', 'Не требует нормализации'],
+    cons: ['Слабее нейросетей на сложных паттернах', 'Оптимален только при наличии сезонности'],
+    notFor: 'Высокочастотные данные без сезонности. Внутридневная торговля.',
+  },
+  'XGBoost': {
+    full: 'Gradient Boosting на деревьях решений. Для временных рядов строит lag-признаки (до 60 лагов) и скользящие статистики. Walk-forward прогноз, быстрое обучение.',
+    when: 'Рынки с чёткими лаговыми зависимостями. Когда важна интерпретируемость через feature importance.',
+    tags: ['ML', 'Деревья', 'Интерпретируемость'],
+    assets: ['Сбербанк', 'Лукойл', 'Apple', 'Microsoft'],
+    speed: 'Быстро',
+    pros: ['Не требует нормализации', 'Быстрее нейросетей в 5–10 раз', 'Feature importance'],
+    cons: ['Требует ручных признаков', 'Хуже при смене рыночных режимов'],
+    notFor: 'Ряды без чётких лаговых паттернов. Очень долгосрочные прогнозы.',
+  },
+  'TCN': {
+    full: 'Temporal Convolutional Network — дилатированные причинные свёртки. Параллельная обработка (быстрее LSTM), экспоненциальное расширение рецептивного поля через дилатацию 1/2/4/8.',
+    when: 'Длинные временные ряды (1000+ точек). Задачи где важна скорость обучения.',
+    tags: ['Свёртки', 'Параллельность', 'Нейросеть'],
+    assets: ['NASDAQ', 'S&P 500', 'NVIDIA', 'Tesla'],
+    speed: 'Среднее',
+    pros: ['Параллельное обучение — быстрее LSTM', 'Большое рецептивное поле', 'Residual-соединения'],
+    cons: ['Фиксированное рецептивное поле', 'Менее гибок при смене сезонности'],
+    notFor: 'Очень короткие ряды. Данные с нерегулярными временными интервалами.',
+  },
+  'N-BEATS': {
+    full: 'Neural Basis Expansion Analysis — чисто MLP архитектура без рекуррентности. Блоки backcast/forecast разлагают ряд на компоненты. Победитель M4 и M5 соревнований по временным рядам.',
+    when: 'Стабильные финансовые ряды с трендом. Эффективен при небольшом количестве данных.',
+    tags: ['MLP', 'Разложение', 'M4 Champion'],
+    assets: ['Dow Jones', 'Сбербанк', 'Лукойл', 'Chevron'],
+    speed: 'Среднее',
+    pros: ['Победитель M4 Competition', 'Нет рекуррентности — стабильное обучение', 'Интерпретируемое разложение'],
+    cons: ['Не умеет использовать дополнительные признаки', 'Сложнее настраивать чем LSTM'],
+    notFor: 'Данные с резкими структурными сдвигами. Криптовалюты с хаотичной динамикой.',
+  },
+  'Transformer': {
+    full: 'Механизм самовнимания (Vaswani, 2017). Каждый токен смотрит на все остальные одновременно — глобальный контекст без рекуррентности. d_model=64, 4 головы, 2 слоя.',
+    when: 'Долгосрочные прогнозы (недели, месяцы). Рынки с системными паттернами.',
+    tags: ['SOTA', 'Внимание', 'Параллельность'],
+    assets: ['S&P 500', 'NASDAQ', 'Apple', 'Google'],
+    speed: 'Медленно',
+    pros: ['Глобальный контекст всей последовательности', 'Параллельная обработка', 'Основа всех SOTA-моделей'],
+    cons: ['Требователен к памяти O(n²)', 'Переобучение на малых данных'],
+    notFor: 'Малые датасеты (<500 точек). Очень короткий горизонт прогноза.',
+  },
+  'TFT': {
+    full: 'Temporal Fusion Transformer (Google, 2021). LSTM-энкодер + темпоральное внимание + GLU-ворота для отбора признаков. Интерпретируем через attention weights.',
+    when: 'Когда важна интерпретируемость + точность. Корпоративный риск-менеджмент.',
+    tags: ['Google', 'Интерпретируемость', 'GLU'],
+    assets: ['S&P 500', 'Сбербанк', 'Лукойл', 'Brent'],
+    speed: 'Медленно',
+    pros: ['Интерпретируемость через attention', 'GLU для автоотбора признаков', 'Объединяет LSTM + Transformer'],
+    cons: ['Самый сложный пайплайн', 'Медленное обучение'],
+    notFor: 'Быстрый прототип. Малые данные.',
+  },
+  'PatchTST': {
+    full: 'Patch Time Series Transformer (2023). Ряд делится на патчи (подпоследовательности) — каждый патч обрабатывается как токен. GELU-активации, learnable positional embedding.',
+    when: 'Среднесрочные прогнозы 1–3 месяца. Ряды с локальными паттернами внутри патча.',
+    tags: ['2023', 'Лучший MAPE', 'Патчи'],
+    assets: ['S&P 500', 'NASDAQ', 'NVIDIA', 'Tesla', 'Яндекс'],
+    speed: 'Медленно',
+    pros: ['Лучший MAPE 0.76% — #1 среди одиночных', 'Патч-токенизация эффективнее point-wise', 'GELU лучше ReLU для финансов'],
+    cons: ['Длина окна должна делиться на patch_size', 'Требует много данных'],
+    notFor: 'Очень короткие ряды. Внутридневные данные с нерегулярными паттернами.',
   },
 }
 
@@ -684,7 +774,7 @@ function ModelsSection() {
           </div>
           <h2 className="text-[clamp(28px,3.5vw,44px)] font-extrabold text-white
                          tracking-[-1px] leading-[1.15] mb-4">
-            От классики до<br />гибридных архитектур
+            16 моделей — от классики<br />до современных трансформеров
           </h2>
           <p className="text-[16px] text-muted">
             Кликни на карточку — узнай когда и где применять каждую модель.
@@ -810,7 +900,7 @@ function CTABlock({ onOpenPricing }) {
         Без регистрации. Без кредитной карты. Просто выбери актив и модель.
       </p>
       <div className="flex items-center justify-center gap-6 mb-10 flex-wrap">
-        {['8 ML-моделей', '40+ инструментов', 'Торговые сигналы', 'Бэктест с Sharpe', 'Бесплатно'].map(f => (
+        {['16 ML-моделей', '40+ инструментов', 'Торговые сигналы', 'Бэктест с Sharpe', 'Бесплатно'].map(f => (
           <span key={f} className="flex items-center gap-1.5 text-[13px] text-muted">
             <IconCheck size={13}/> {f}
           </span>
@@ -832,7 +922,7 @@ function CTABlock({ onOpenPricing }) {
 // ── Footer data (module scope) ────────────────────────────────────────────────
 const FOOTER_COLS = [
   { title: 'Платформа', links: ['Прогноз', 'Торговые сигналы', 'Бэктест', 'Сравнение моделей'] },
-  { title: 'Модели',    links: ['ARIMA', 'GARCH', 'LSTM / GRU', 'Гибридные', 'Ensemble'] },
+  { title: 'Модели',    links: ['ARIMA / SARIMA', 'GARCH / Prophet', 'LSTM / TCN / N-BEATS', 'Transformer / TFT / PatchTST', 'Гибридные / Ensemble'] },
   { title: 'Активы',    links: ['S&P 500, NASDAQ', 'MOEX (Сбер, Лукойл…)', 'Нефть Brent / WTI', 'Золото, Газ', 'Технологии (AAPL, NVDA…)'] },
 ]
 

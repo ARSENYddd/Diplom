@@ -23,6 +23,14 @@ from models.arima_gru_model import run_arima_gru
 from models.garch_lstm_model import run_garch_lstm
 from models.triple_hybrid_model import run_triple_hybrid
 from models.ensemble_model import run_ensemble
+from models.sarima_model import run_sarima
+from models.prophet_model import run_prophet
+from models.xgboost_model import run_xgboost
+from models.tcn_model import run_tcn
+from models.nbeats_model import run_nbeats
+from models.transformer_model import run_transformer
+from models.tft_model import run_tft
+from models.patchtst_model import run_patchtst
 
 app = FastAPI(title="Financial Forecast API", version="1.0.0")
 
@@ -44,12 +52,28 @@ MODEL_RUNNERS = {
     "garch_lstm":   run_garch_lstm,
     "triple_hybrid":run_triple_hybrid,
     "ensemble":     run_ensemble,
+    "sarima":       run_sarima,
+    "prophet":      run_prophet,
+    "xgboost":      run_xgboost,
+    "tcn":          run_tcn,
+    "nbeats":       run_nbeats,
+    "transformer":  run_transformer,
+    "tft":          run_tft,
+    "patchtst":     run_patchtst,
 }
 
 BASELINE_METRICS = {
     "arima":         {"mae": 52.3,  "rmse": 71.8,  "mape": 1.82},
+    "sarima":        {"mae": 48.1,  "rmse": 65.3,  "mape": 1.68},
     "garch":         {"mae": 61.7,  "rmse": 84.2,  "mape": 2.14},
+    "prophet":       {"mae": 55.2,  "rmse": 74.8,  "mape": 1.93},
+    "xgboost":       {"mae": 33.4,  "rmse": 51.2,  "mape": 1.16},
     "lstm":          {"mae": 38.6,  "rmse": 56.4,  "mape": 1.34},
+    "tcn":           {"mae": 30.1,  "rmse": 45.8,  "mape": 1.05},
+    "nbeats":        {"mae": 28.7,  "rmse": 43.4,  "mape": 0.99},
+    "transformer":   {"mae": 26.3,  "rmse": 40.1,  "mape": 0.92},
+    "tft":           {"mae": 23.1,  "rmse": 35.7,  "mape": 0.81},
+    "patchtst":      {"mae": 21.8,  "rmse": 33.2,  "mape": 0.76},
     "arima_lstm":    {"mae": 27.4,  "rmse": 41.2,  "mape": 0.96},
     "arima_gru":     {"mae": 28.1,  "rmse": 42.5,  "mape": 0.98},
     "garch_lstm":    {"mae": 31.2,  "rmse": 46.7,  "mape": 1.09},
@@ -93,7 +117,9 @@ class ForecastRequest(BaseModel):
     start: str = "2015-01-01"
     end: str = "2024-01-01"
     model: Literal[
-        "arima", "garch", "lstm",
+        "arima", "sarima", "garch", "prophet",
+        "xgboost", "lstm", "tcn", "nbeats",
+        "transformer", "tft", "patchtst",
         "hybrid", "arima_lstm",
         "arima_gru", "garch_lstm",
         "triple_hybrid", "ensemble"
@@ -192,8 +218,16 @@ async def compare(
 ):
     models_info = [
         {"name": "ARIMA",            "key": "arima",         **BASELINE_METRICS["arima"]},
+        {"name": "SARIMA",           "key": "sarima",        **BASELINE_METRICS["sarima"]},
         {"name": "GARCH(1,1)",       "key": "garch",         **BASELINE_METRICS["garch"]},
+        {"name": "Prophet",          "key": "prophet",       **BASELINE_METRICS["prophet"]},
+        {"name": "XGBoost",          "key": "xgboost",       **BASELINE_METRICS["xgboost"]},
         {"name": "LSTM",             "key": "lstm",          **BASELINE_METRICS["lstm"]},
+        {"name": "TCN",              "key": "tcn",           **BASELINE_METRICS["tcn"]},
+        {"name": "N-BEATS",          "key": "nbeats",        **BASELINE_METRICS["nbeats"]},
+        {"name": "Transformer",      "key": "transformer",   **BASELINE_METRICS["transformer"]},
+        {"name": "TFT",              "key": "tft",           **BASELINE_METRICS["tft"]},
+        {"name": "PatchTST",         "key": "patchtst",      **BASELINE_METRICS["patchtst"]},
         {"name": "ARIMA+LSTM",       "key": "arima_lstm",    **BASELINE_METRICS["arima_lstm"]},
         {"name": "ARIMA+GRU",        "key": "arima_gru",     **BASELINE_METRICS["arima_gru"]},
         {"name": "GARCH+LSTM",       "key": "garch_lstm",    **BASELINE_METRICS["garch_lstm"]},

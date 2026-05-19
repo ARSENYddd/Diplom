@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { IconTarget, IconBarChart, IconSignal, IconTimeSeries, IconML, IconPnL, IconSearch } from './Icons'
+import { IconTarget, IconBarChart, IconSignal, IconTimeSeries, IconML, IconPnL, IconSearch, IconNeuralNet } from './Icons'
 
 const SECTIONS = [
   {
@@ -348,6 +348,144 @@ const SECTIONS = [
     ],
   },
   {
+    id: 'models',
+    icon: <IconNeuralNet size={18}/>,
+    title: 'Модели прогноза',
+    terms: [
+      {
+        term: 'ARIMA',
+        full: 'AutoRegressive Integrated Moving Average',
+        ru: 'Авторегрессионная интегрированная скользящая средняя',
+        def: 'Классическая статистическая модель для временных рядов. Параметр I (интегрирование) приводит ряд к стационарности взятием разностей. AR-часть учитывает зависимость от прошлых значений, MA — от прошлых ошибок.',
+        formula: 'ARIMA(p,d,q): p — лаги AR, d — порядок разностей, q — лаги MA',
+        example: 'ARIMA(1,1,1) на ценах S&P 500: берём первые разности (d=1), учитываем один лаг цены (p=1) и одну лаговую ошибку (q=1). MAPE ≈ 1.82%.',
+        range: 'Хорошо работает на стационарных и трендовых рядах без сезонности',
+        tag: 'models',
+      },
+      {
+        term: 'SARIMA',
+        full: 'Seasonal ARIMA',
+        ru: 'Сезонная ARIMA',
+        def: 'Расширение ARIMA с явным моделированием сезонности. Добавляет сезонные AR и MA лаги с периодом m. Подбирается автоматически через pmdarima (auto_arima). Эффективна когда паттерн повторяется каждые m периодов.',
+        formula: 'SARIMA(p,d,q)(P,D,Q)[m]: m — сезонный период (для 1d → m=5 торговых дней)',
+        example: 'SARIMA на дневных данных ГАЗПРОМ: m=5 (торговая неделя), автоматически выбраны (1,1,1)(1,1,0)[5]. MAPE ≈ 1.68% — лучше чем ARIMA.',
+        range: 'Период m: 1h→24, 1d→5, 1wk→52, 1mo→12',
+        tag: 'models',
+      },
+      {
+        term: 'GARCH',
+        full: 'Generalized AutoRegressive Conditional Heteroskedasticity',
+        ru: 'Обобщённая авторегрессионная условная гетероскедастичность',
+        def: 'Модель для прогнозирования волатильности. Не прогнозирует цену напрямую — строит диапазон (сценарии) на основе оценки изменчивости. В AlphaSignal используется как дополнение к ARIMA в гибридных моделях.',
+        formula: 'σ²_t = ω + α·ε²_(t-1) + β·σ²_(t-1), GARCH(1,1)',
+        example: 'GARCH на рубле/доллар: кластеры волатильности в кризисные периоды (2014, 2022) хорошо предсказываются. Помогает задать ширину доверительного интервала прогноза.',
+        range: 'Не предсказывает направление — только диапазон. MAPE ≈ 2.14% (выше, чем у LSTM)',
+        tag: 'models',
+      },
+      {
+        term: 'Prophet',
+        full: 'Prophet (Meta)',
+        ru: 'Модель Prophet от Meta (Facebook)',
+        def: 'Аддитивная модель временных рядов от Meta. Автоматически выделяет тренд, сезонность (годовую/недельную/дневную) и праздничные эффекты. Устойчива к пропускам данных и выбросам. Лучше всего работает на данных с выраженной сезонностью.',
+        formula: 'y(t) = trend(t) + seasonality(t) + holidays(t) + ε',
+        example: 'Prophet на S&P 500: выделяет годовую сезонность (январский эффект, декабрьское ралли) и недельный паттерн. Changepoint_prior_scale=0.05 — умеренная гибкость тренда.',
+        range: 'Оптимален для длинных рядов с сезонностью. Слабее LSTM на неструктурированных рядах',
+        tag: 'models',
+      },
+      {
+        term: 'XGBoost',
+        full: 'Extreme Gradient Boosting',
+        ru: 'Экстремальный градиентный бустинг',
+        def: 'Ансамбль деревьев решений, обучаемый последовательно — каждое дерево исправляет ошибки предыдущего. Для временных рядов строит lag-признаки (прошлые цены) и скользящие статистики. Walk-forward прогноз без переобучения.',
+        formula: 'ŷ = Σ fₖ(x), где fₖ — дерево, x включает лаги (1,2,3,5,10,20,60) и rolling stats',
+        example: 'XGBoost на S&P 500: 300 деревьев глубиной 5, learning_rate=0.05. Признаки: 14 лагов + скользящие средние/СКО за 5/10/20/60 дней. MAPE ≈ 1.16%.',
+        range: 'Отличная интерпретируемость через feature_importance. Не требует нормализации данных',
+        tag: 'models',
+      },
+      {
+        term: 'LSTM',
+        full: 'Long Short-Term Memory',
+        ru: 'Долгая кратковременная память',
+        def: 'Рекуррентная нейросеть с механизмом памяти (вентили: input, forget, output). Способна улавливать долгосрочные зависимости во временных рядах, которые ARIMA не может. Обучается на скользящих окнах исторических цен.',
+        formula: 'f_t=σ(W_f·[h_{t-1},x_t]+b_f), i_t=σ(...), C_t=f_t⊙C_{t-1}+i_t⊙tanh(...)',
+        example: 'LSTM в AlphaSignal: 2 слоя по 64 нейрона, dropout 0.2, окно 60 дней, 50 эпох. Улавливает долгосрочные тренды лучше ARIMA. MAPE ≈ 1.34%.',
+        range: 'Требует больше данных чем ARIMA. Эффективен при нелинейных зависимостях',
+        tag: 'models',
+      },
+      {
+        term: 'TCN',
+        full: 'Temporal Convolutional Network',
+        ru: 'Временная свёрточная сеть',
+        def: 'Нейросеть на основе причинных дилатированных свёрток. Параллельнее LSTM, хорошо масштабируется на длинных последовательностях. Дилатация (1,2,4,8) позволяет охватить большой контекст без глубокой рекуррентности.',
+        formula: 'Дилатированная свёртка: y[t] = Σ filter[i] · x[t − d·i], d — дилатация',
+        example: 'TCN в AlphaSignal: 4 блока с дилатацией 1,2,4,8, 64 фильтра, kernel_size=3. Рецептивное поле охватывает 120 шагов при глубине 4. MAPE ≈ 1.05%.',
+        range: 'Быстрее LSTM при обучении. Лучше работает на длинных зависимостях',
+        tag: 'models',
+      },
+      {
+        term: 'N-BEATS',
+        full: 'Neural Basis Expansion Analysis for Time Series',
+        ru: 'Нейросетевой анализ базисных разложений',
+        def: 'Чисто MLP архитектура без рекуррентности. Состоит из стеков блоков, каждый из которых предсказывает "backcast" (восстановление входа) и "forecast". Остаточное соединение между блоками позволяет выучивать иерархические паттерны.',
+        formula: 'forecast = Σ forecast_block_k; residual_k = input - backcast_k',
+        example: 'N-BEATS в AlphaSignal: 2 стека по 3 блока, 256 нейронов в каждом Dense-слое, theta=64. Хорошо разделяет тренд и сезонность. MAPE ≈ 0.99%.',
+        range: 'Сильная архитектура без рекуррентности. Интерпретируемее LSTM',
+        tag: 'models',
+      },
+      {
+        term: 'Transformer',
+        full: 'Transformer (Vaswani et al., 2017)',
+        ru: 'Трансформер — модель на основе самовнимания',
+        def: 'Архитектура на основе механизма самовнимания (Self-Attention). Параллельно обрабатывает все позиции последовательности. В AlphaSignal адаптирован для прогноза временных рядов: синусоидальное позиционное кодирование + Multi-Head Attention.',
+        formula: 'Attention(Q,K,V) = softmax(QKᵀ/√d_k)·V',
+        example: 'Transformer в AlphaSignal: d_model=64, 4 головы внимания, 2 слоя энкодера, FFN=128. Токенизирует скользящее окно 60 дней. MAPE ≈ 0.92%.',
+        range: 'Требует больше памяти чем LSTM. Лучший эффект на длинных последовательностях',
+        tag: 'models',
+      },
+      {
+        term: 'TFT',
+        full: 'Temporal Fusion Transformer (Google, 2021)',
+        ru: 'Трансформер с темпоральным слиянием',
+        def: 'Разработан Google для интерпретируемого прогнозирования. Комбинирует LSTM-энкодер для обработки локального контекста, механизм темпорального внимания (Self-Attention) и GLU-ворота для отбора признаков.',
+        formula: 'GLU: Gate(x) = σ(W₁x+b₁) ⊙ (W₂x+b₂) — выборочное пропускание сигнала',
+        example: 'TFT в AlphaSignal: LSTM 64 юнита, MHA 4 головы, d_model=64. GLU-ворота отфильтровывают нерелевантные паттерны. MAPE ≈ 0.81%.',
+        range: 'Один из точнейших методов для финансовых рядов. Интерпретируем через attention weights',
+        tag: 'models',
+      },
+      {
+        term: 'PatchTST',
+        full: 'Patch Time Series Transformer (2023)',
+        ru: 'Трансформер с патч-токенизацией',
+        de: 'Архитектура 2023 года: делит временной ряд на патчи (подпоследовательности) и обрабатывает их как токены в Vision Transformer. Каждый патч охватывает локальный временной контекст. GELU-активации и learnable positional embedding.',
+        def: 'Архитектура 2023 года: делит временной ряд на патчи (подпоследовательности) и обрабатывает их как токены в Vision Transformer. Каждый патч охватывает локальный временной контекст. GELU-активации и learnable positional embedding.',
+        formula: 'n_patches = window // patch_size; каждый патч → Dense(d_model) + позиционный embedding',
+        example: 'PatchTST в AlphaSignal: окно 64 дня, patch_size=8 → 8 патчей, d_model=64, 2 слоя MHA. GlobalAveragePooling объединяет все патчи → Dense(1). MAPE ≈ 0.76%.',
+        range: 'Лучшая точность среди всех моделей. Особенно силён на среднесрочных горизонтах (1–3 мес.)',
+        tag: 'models',
+      },
+      {
+        term: 'ARIMA+LSTM (гибрид)',
+        full: 'Hybrid ARIMA-LSTM',
+        ru: 'Гибридная модель: статистика + нейросеть',
+        def: 'Двухэтапный подход: ARIMA улавливает линейные зависимости и тренд, LSTM обучается на остатках (нелинейных паттернах, которые ARIMA пропустила). Итоговый прогноз = сумма обоих. Лучше каждой по отдельности.',
+        formula: 'ŷ_hybrid = ŷ_ARIMA + ŷ_LSTM(residuals_ARIMA)',
+        example: 'ARIMA снимает линейный тренд S&P 500, LSTM дообучается на остатках (паттерны кризисов, коррекций). Итог: MAPE 0.96% vs ARIMA 1.82% и LSTM 1.34%.',
+        range: 'Гибрид почти всегда лучше каждой составляющей в отдельности',
+        tag: 'models',
+      },
+      {
+        term: 'Ансамбль (Ensemble)',
+        full: 'Weighted Ensemble of 8 Models',
+        ru: 'Взвешенный ансамбль восьми моделей',
+        def: 'Объединяет прогнозы всех 8 базовых моделей. Веса пропорциональны обратному MAPE (точнее модель → больший вес). Снижает дисперсию ошибки: модели ошибаются в разных местах, ансамбль компенсирует.',
+        formula: 'wᵢ = (1/MAPEᵢ) / Σ(1/MAPEⱼ); ŷ = Σ wᵢ·ŷᵢ',
+        example: 'PatchTST (MAPE 0.76%) получает вес ~0.18, GARCH (MAPE 2.14%) — вес ~0.06. Итоговый Ensemble MAPE 0.78% — лучший результат среди всех моделей.',
+        range: 'Рекомендован для production-прогнозов. Стабильнее любой одиночной модели',
+        tag: 'models',
+      },
+    ],
+  },
+  {
     id: 'finance',
     icon: <IconPnL size={18}/>,
     title: 'Финансовые термины',
@@ -467,13 +605,17 @@ export default function WikiPage() {
                        px-4 py-2.5 text-[14px] text-warm placeholder:text-muted
                        focus:outline-none focus:border-amber-400/60 transition-colors"
           />
-          <div className="flex gap-1 bg-[var(--surface)] border border-[var(--border)] rounded-xl p-1">
-            {[['all', 'Все'], ...SECTIONS.map(s => [s.id, s.icon + ' ' + s.title.split(' ')[0]])].map(([key, label]) => (
+          <div className="flex gap-1 bg-[var(--surface)] border border-[var(--border)] rounded-xl p-1 flex-wrap">
+            {[
+              { key: 'all', icon: null, label: 'Все' },
+              ...SECTIONS.map(s => ({ key: s.id, icon: s.icon, label: s.title.split(' ')[0] })),
+            ].map(({ key, icon, label }) => (
               <button key={key} onClick={() => setSection(key)}
-                className={`text-[12px] px-3 py-1.5 rounded-lg transition-all whitespace-nowrap
+                className={`inline-flex items-center gap-1.5 text-[12px] px-3 py-1.5 rounded-lg transition-all whitespace-nowrap
                   ${section === key
                     ? 'bg-amber-400/20 text-amber-400 border border-amber-400/30'
                     : 'text-muted hover:text-warm'}`}>
+                {icon}
                 {label}
               </button>
             ))}
